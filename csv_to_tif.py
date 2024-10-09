@@ -35,7 +35,6 @@ def main():
     print('finished')
 
 
-
 def check_paths(args):
     csv_path, shp_path, combined_path = args.csv_filepath, args.shp_filepath, args.combined_folder
     check = True
@@ -107,6 +106,9 @@ def transfrom_to_raster(buffer_geometry, cal_border):
     california_raster[california_raster_mask] = 1  # Set pixels inside California border to 1
 
     return np.maximum(buffered_raster, california_raster), transform
+
+def resize_raster(raster):
+    pass
 
 def save_raster_combine(args, combined_raster, transform):
     combined_raster_path = os.path.join(args.combined_folder, f'{int(args.buffer_size)}km_' + args.output_filename)
