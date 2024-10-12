@@ -5,24 +5,32 @@ import numpy as np
 import rasterio
 from rasterio.transform import from_origin
 from rasterio import features
-import matplotlib.pyplot as plt
 from rasterio.plot import show
 from rasterio.mask import mask
 import argparse
 import warnings
+from rasterio.warp import reproject, Resampling
+import tempfile
+import shutil
+import yaml
 
-COORD_SYSTEM = "EPSG:4269"
+from constants import COORD_SYSTEM, TARGET_WIDTH, TARGET_HEIGHT, TARGET_RESOLUTION, MIN_LON, MAX_LAT
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--csv_filepath', type=str, required=True, help='filepath of csv to be processed')
-    parser.add_argument('--output_filename', type=str, required=True, help='output file name')
-    parser.add_argument('--shp_filepath', type=str, default='California.shp', help='overlay shapefile of CA')
-    parser.add_argument('--combined_folder', type=str, default='combined', help='folder where to store combined shapes')
-    parser.add_argument('--buffer_size', type=float, required=True, help='size of buffer in km')
-    parser.add_argument('--verbose', action='store_true', help='Enable verbose output')
+    parser.add_argument('--config', type=str, default='config.yaml', help="Path to the YAML configuration file")
 
     args = parser.parse_args()
+
+    # Load the configuration from the YAML file
+    config = load_config(args.config)
+
+    # Access the config values
+    args.csv_filepath = config['csv_filepath']
+    args.shp_filepath = config['shp_filepath']
+    args.buffer_size = config['buffer_size']
+    args.output_filename = config['output_filename']
+    args.output_folder = config['output_folder']
 
     check_paths(args)
 
@@ -32,11 +40,16 @@ def main():
     combined_raster, transform = transfrom_to_raster(buffer_geometry, cal_shape)
     raster_path = save_raster_combine(args, combined_raster, transform)
     add_null_val(raster_path, cal_shape)
+    transform_tif
     print('finished')
 
+def load_config(yaml_filepath):
+    with open(yaml_filepath, 'r') as file:
+        config = yaml.safe_load(file)
+    return config
 
 def check_paths(args):
-    csv_path, shp_path, combined_path = args.csv_filepath, args.shp_filepath, args.combined_folder
+    csv_path, shp_path, output_path = args.csv_filepath, args.shp_filepath, args.output_folder
     check = True
 
     if not os.path.isfile(csv_path):
@@ -45,7 +58,7 @@ def check_paths(args):
     if not os.path.isfile(shp_path):
         check = False
         print('shp_filepath does not exist')
-    if not os.path.isdir(combined_path):
+    if not os.path.isdir(output_path):
         check = False
         print('combined_folder does not exist')
 
@@ -107,11 +120,8 @@ def transfrom_to_raster(buffer_geometry, cal_border):
 
     return np.maximum(buffered_raster, california_raster), transform
 
-def resize_raster(raster):
-    pass
-
 def save_raster_combine(args, combined_raster, transform):
-    combined_raster_path = os.path.join(args.combined_folder, f'{int(args.buffer_size)}km_' + args.output_filename)
+    combined_raster_path = os.path.join(args.output_folder, f'{int(args.buffer_size)}km_' + args.output_filename)
 
     with rasterio.open(
         combined_raster_path, 'w',
@@ -148,6 +158,40 @@ def add_null_val(raster_path, ca_shape):
 
         src.write(data, 1)
 
+def transform_tif(raster_path):
+    with rasterio.open(raster_path) as src:
+        # Create a temporary file to hold the transformed raster
+        temp_output = tempfile.NamedTemporaryFile(delete=False, suffix='.tif')
+        
+        with rasterio.open(raster_path) as src:
+            # Calculate the target transform
+            transform = from_origin(MIN_LON, MAX_LAT, TARGET_RESOLUTION[0], TARGET_RESOLUTION[1])
+
+            # Define the metadata for the output file
+            kwargs = src.meta.copy()
+            kwargs.update({
+                'crs': COORD_SYSTEM,
+                'transform': transform,
+                'width': TARGET_WIDTH,
+                'height': TARGET_HEIGHT,
+                'driver': 'GTiff'
+            })
+
+            # Create the temporary output file with the updated metadata
+            with rasterio.open(temp_output.name, 'w', **kwargs) as dst:
+                for i in range(1, src.count + 1):
+                    reproject(
+                        source=rasterio.band(src, i),
+                        destination=rasterio.band(dst, i),
+                        src_transform=src.transform,
+                        src_crs=src.crs,
+                        dst_transform=transform,
+                        dst_crs=COORD_SYSTEM,
+                        resampling=Resampling.nearest
+                    )
+        
+        # Replace the original file with the transformed file
+        shutil.move(temp_output.name, raster_path)
 
 if __name__ == "__main__":
     main()
