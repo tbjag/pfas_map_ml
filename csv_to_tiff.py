@@ -31,16 +31,26 @@ def main():
     args.buffer_size = config['buffer_size']
     args.output_filename = config['output_filename']
     args.output_folder = config['output_folder']
+    args.is_folder = config['input_is_folder']
 
     check_paths(args)
 
-    buffer_geometry = get_geometry(args)
-    cal_shape = get_shp(args)
+    if args.is_folder:
+        filepaths = queue_files(args.csv_filepath)
+    else:
+        filepaths = [args.csv_filepath]
+        
+ 
+    for filepath in filepaths:
+        args.csv_filepath = filepath
+        buffer_geometry = get_geometry(args)
+        cal_shape = get_shp(args)
 
-    combined_raster, transform = transfrom_to_raster(buffer_geometry, cal_shape)
-    raster_path = save_raster_combine(args, combined_raster, transform)
-    add_null_val(raster_path, cal_shape)
-    transform_tif
+        combined_raster, transform = transfrom_to_raster(buffer_geometry, cal_shape)
+        raster_path = save_raster_combine(args, combined_raster, transform)
+        add_null_val(raster_path, cal_shape)
+        transform_tif(raster_path)
+
     print('finished')
 
 def load_config(yaml_filepath):
@@ -48,13 +58,25 @@ def load_config(yaml_filepath):
         config = yaml.safe_load(file)
     return config
 
+def queue_files(dir_path):
+    file_paths = []
+    for root, _, files in os.walk(dir_path):
+        for file in files:
+            file_paths.append(os.path.join(root, file))
+    return file_paths
+
 def check_paths(args):
-    csv_path, shp_path, output_path = args.csv_filepath, args.shp_filepath, args.output_folder
+    csv_path, shp_path, output_path, is_folder= args.csv_filepath, args.shp_filepath, args.output_folder, args.is_folder
     check = True
 
-    if not os.path.isfile(csv_path):
-        check = False
-        print('csv_filepath does not exist')
+    if is_folder:
+        if not os.path.isdir(csv_path):
+            check = False
+            print('csv folder does not exist')
+    else:
+        if not os.path.isfile(csv_path):
+            check = False
+            print('csv_filepath does not exist')
     if not os.path.isfile(shp_path):
         check = False
         print('shp_filepath does not exist')

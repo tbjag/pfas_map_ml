@@ -1,5 +1,6 @@
-csv_filepath: 'filtered_fire stations.csv'
+csv_filepath: 'og_csv'
 shp_filepath: 'California.shp'
-buffer_size: 10
+buffer_size: 11
 output_filename: 'test.tif'
 output_folder: 'combined'
+input_is_folder: true
