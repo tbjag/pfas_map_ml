@@ -3,9 +3,6 @@ import torch
 import geopandas as gpd
 from rasterio.mask import mask
 import os
-import re
-from collections import defaultdict
-import matplotlib.pyplot as plt
 import numpy as np
 
 def tiff_to_tensor(tiff_file, grid_size, output_directory):
@@ -16,20 +13,16 @@ def tiff_to_tensor(tiff_file, grid_size, output_directory):
         original_bands, original_height, original_width = tiff_data.shape
         print(f'Original image dimensions: {original_bands} bands, {original_height} height, {original_width} width')
 
-        ca_shape = gpd.read_file('/content/drive/MyDrive/EE ML PFAS/Raw_Data/Mapping/California_Shapefile/California.shp')
-        cropped_image, cropped_transform = mask(src, ca_shape.geometry, crop=True)
-
-        bands, height, width = cropped_image.shape
-        print(f'Cropped image dimensions: {bands} bands, {height} height, {width} width')
         cells = []
 
-        for i in range(0, height, grid_size):
-            for j in range(0, width, grid_size):
-                cell = cropped_image[:, i:i+grid_size, j:j+grid_size]
-                if cell.shape == (bands, grid_size, grid_size):
+        for i in range(0, original_height, grid_size):
+            for j in range(0, original_width, grid_size):
+                cell = tiff_data[:, i:i+grid_size, j:j+grid_size]
+                if cell.shape == (1, grid_size, grid_size):
                     # Check if the cell contains any null values (assuming null values are represented by NaNs)
-                    if not np.any(np.isnan(cell)):
+                    if not np.any(np.isnan(cell)) and not np.any(cell < 0):
                         cells.append(cell)
+ 
 
     if cells:
         tensors = [torch.tensor(cell, dtype=torch.float32) for cell in cells]
@@ -47,7 +40,7 @@ def tiff_to_tensor(tiff_file, grid_size, output_directory):
 
 #Create Stacked Tensors for each file in selected directory
 def process_directory(directory, grid_size, output_directory):
-    for root, dirs, files in os.walk(directory):
+    for root, _, files in os.walk(directory):
         for file in files:
             if file.endswith('.tif') or file.endswith('.tiff'):
                 tiff_file = os.path.join(root, file)
@@ -55,3 +48,15 @@ def process_directory(directory, grid_size, output_directory):
                     tiff_to_tensor(tiff_file, grid_size, output_directory)
                 except Exception as e:
                     print(f"Failed to process {tiff_file}: {e}")
+
+def main():
+    input_dir = '.'
+    grid_size = 10
+    output_dir = 'out_pth'
+    
+    # process_directory(input_dir, grid_size, output_dir)
+
+    tiff_to_tensor('output_doubled.tiff', grid_size, 'out_pth')
+
+if __name__ == "__main__":
+    main()

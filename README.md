@@ -9,4 +9,9 @@
 
 ## Notes / Troublshooting
 
-python csv_to_tif.py --csv_filepath='filtered_fire stations.csv' --shp_filepath=California.shp --buffer_size=4
+python csv_to_tif.py 
+
+## TODOS
+
+- standardize tiff to tensor.py = read in config = change so that it doesnt read all dirs; just one
+- read in 

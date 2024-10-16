@@ -1,6 +1,5 @@
-csv_filepath: 'og_csv'
+csv_filepath: 'raw_data'
 shp_filepath: 'California.shp'
 buffer_size: 11
-output_filename: 'test.tif'
-output_folder: 'combined'
+output_folder: 'conv_tif'
 input_is_folder: true

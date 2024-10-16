@@ -29,7 +29,6 @@ def main():
     args.csv_filepath = config['csv_filepath']
     args.shp_filepath = config['shp_filepath']
     args.buffer_size = config['buffer_size']
-    args.output_filename = config['output_filename']
     args.output_folder = config['output_folder']
     args.is_folder = config['input_is_folder']
 
@@ -39,17 +38,19 @@ def main():
         filepaths = queue_files(args.csv_filepath)
     else:
         filepaths = [args.csv_filepath]
-        
+    
+    print(filepaths)
  
-    for filepath in filepaths:
+    for filepath, filename in filepaths:
         args.csv_filepath = filepath
         buffer_geometry = get_geometry(args)
         cal_shape = get_shp(args)
 
-        combined_raster, transform = transfrom_to_raster(buffer_geometry, cal_shape)
-        raster_path = save_raster_combine(args, combined_raster, transform)
+        combined_raster, transform = transfrom_to_raster(buffer_geometry, cal_shape, filepath)
+        raster_path = save_raster_combine(args, combined_raster, transform, filename)
         add_null_val(raster_path, cal_shape)
-        transform_tif(raster_path)
+        # transform_tif(raster_path)
+        print(f'saved {filename}.tif')
 
     print('finished')
 
@@ -59,11 +60,13 @@ def load_config(yaml_filepath):
     return config
 
 def queue_files(dir_path):
-    file_paths = []
+    file_info  = []
     for root, _, files in os.walk(dir_path):
         for file in files:
-            file_paths.append(os.path.join(root, file))
-    return file_paths
+            full_path = os.path.join(root, file)
+            file_name = os.path.splitext(file)[0]  # Get filename without extension
+            file_info.append((full_path, file_name))
+    return file_info
 
 def check_paths(args):
     csv_path, shp_path, output_path, is_folder= args.csv_filepath, args.shp_filepath, args.output_folder, args.is_folder
@@ -92,37 +95,39 @@ def get_geometry(args):
 
     check_lat, check_lon = True, True
     for col in df.columns:
-        if col in ['long', 'lon', 'LON', 'LONG', 'longitude', 'LONGITUDE']:
+        if col.lower() in ['long', 'lon', 'longitude']:
             check_lon = False
             df.rename(columns={col: 'longitude'}, inplace=True)
 
-        if col in ['lat', 'LAT', 'latitude', 'LATITUDE']:
+        if col.lower() in ['lat', 'latitude']:
             check_lat = False
             df.rename(columns={col: 'latitude'}, inplace=True)
 
     if check_lon:
-        print('could not find longitude column')
+        print(f'could not find longitude column {args.csv_filepath}')
         exit()
 
     if check_lat:
         print('could not find latitude column')
         exit()
 
-    gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude), crs=COORD_SYSTEM) # leave acomment about crs
+    gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df.longitude, df.latitude), crs=COORD_SYSTEM) # leave a comment about crs
 
     coord_transform = args.buffer_size / 100
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", UserWarning)
         geo_buf = gdf['geometry'].buffer(coord_transform)
 
-    return geo_buf
+    gdf['geometry'] = geo_buf
+
+    return gdf
 
 def get_shp(args):
     california_border = gpd.read_file(args.shp_filepath)
     california_border.crs = COORD_SYSTEM
     return california_border
 
-def transfrom_to_raster(buffer_geometry, cal_border):
+def transfrom_to_raster(gdf, cal_border, filename):
     # Determine raster extent and pixel size
     xmin, ymin, xmax, ymax = cal_border.total_bounds
     pixel_size = 0.01  # Adjust as needed
@@ -130,28 +135,30 @@ def transfrom_to_raster(buffer_geometry, cal_border):
     height = int((ymax - ymin) / pixel_size)
     transform = from_origin(xmin, ymax, pixel_size, pixel_size)
 
+    # select which VAL to pick here
+    print(f"in file: {filename} | choose which column to have as a buffer value: {gdf.columns.to_list()} | default: 1")
+    val_to_buffer_col = input("enter column name here: ")
+
     # Create raster for buffer zones
-    buffered_raster = np.zeros((height, width), dtype=np.uint8)
-    buffered_raster_mask = features.geometry_mask(buffer_geometry, transform=transform, invert=True, out_shape=(height, width))
-    buffered_raster[buffered_raster_mask] = 2  # Set pixels inside buffered geometries to 2
+    shapes_with_val = [(geom, value) for geom, value in zip(gdf['geometry'], gdf[val_to_buffer_col])]
+    buffered_raster = features.rasterize(shapes_with_val, out_shape=(height, width), transform=transform, fill=0, dtype=rasterio.float32)
 
     # Create raster for California border
     california_raster = np.zeros((height, width), dtype=np.uint8)
     california_raster_mask = features.geometry_mask(cal_border['geometry'], transform=transform, invert=True, out_shape=(height, width))
-    california_raster[california_raster_mask] = 1  # Set pixels inside California border to 1
+    california_raster[california_raster_mask] = 0  # Set pixels inside California border to 0
 
     return np.maximum(buffered_raster, california_raster), transform
 
-def save_raster_combine(args, combined_raster, transform):
-    combined_raster_path = os.path.join(args.output_folder, f'{int(args.buffer_size)}km_' + args.output_filename)
-
+def save_raster_combine(args, combined_raster, transform, filename):
+    combined_raster_path = os.path.join(args.output_folder, f'{int(args.buffer_size)}km_{filename}.tif')
     with rasterio.open(
         combined_raster_path, 'w',
         driver='GTiff',
         height=combined_raster.shape[0],
         width=combined_raster.shape[1],
         count=1,
-        dtype=rasterio.uint8,
+        dtype=rasterio.float32,
         crs=COORD_SYSTEM,
         transform=transform,
     ) as dst:
@@ -168,8 +175,8 @@ def add_null_val(raster_path, ca_shape):
         # Generate mask
         mask_array, _ = mask(src, ca_shapes, crop=False)
 
-        # Check if NoData value exists, if not, set a default
-        nodata_value = src.nodata if src.nodata is not None else 0  # Or any suitable default
+        # Check if NoData value exists, if not, set a default TODO what is this
+        nodata_value = src.nodata if src.nodata is not None else -100  # Or any suitable default
 
         # Set values outside the mask to NoData
         data[mask_array[0] == False] = nodata_value
