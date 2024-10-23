@@ -10,9 +10,7 @@ def tiff_to_tensor(tiff_file, grid_size, output_directory):
     with rasterio.open(tiff_file) as src:
         tiff_data = src.read()
 
-        original_bands, original_height, original_width = tiff_data.shape
-        print(f'Original image dimensions: {original_bands} bands, {original_height} height, {original_width} width')
-
+        _, original_height, original_width = tiff_data.shape
         cells = []
 
         for i in range(0, original_height, grid_size):
@@ -20,7 +18,8 @@ def tiff_to_tensor(tiff_file, grid_size, output_directory):
                 cell = tiff_data[:, i:i+grid_size, j:j+grid_size]
                 if cell.shape == (1, grid_size, grid_size):
                     # Check if the cell contains any null values (assuming null values are represented by NaNs)
-                    if not np.any(np.isnan(cell)) and not np.any(cell < 0):
+                    if not np.any(np.isnan(cell)) or not np.any(cell < 0):
+                        cell -= 1
                         cells.append(cell)
  
 
@@ -48,15 +47,15 @@ def process_directory(directory, grid_size, output_directory):
                     tiff_to_tensor(tiff_file, grid_size, output_directory)
                 except Exception as e:
                     print(f"Failed to process {tiff_file}: {e}")
-
-def main():
-    input_dir = '.'
-    grid_size = 10
-    output_dir = 'out_pth'
+    print('finished')
     
-    # process_directory(input_dir, grid_size, output_dir)
+def main():
+    input_dir = 'large_tiff_data3'
+    grid_size = 10
+    output_dir = 'pth_data'
+    
+    process_directory(input_dir, grid_size, output_dir)
 
-    tiff_to_tensor('output_doubled.tiff', grid_size, 'out_pth')
 
 if __name__ == "__main__":
     main()

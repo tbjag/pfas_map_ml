@@ -1,5 +1,7 @@
-csv_filepath: 'raw_data'
-shp_filepath: 'California.shp'
-buffer_size: 11
-output_folder: 'conv_tif'
-input_is_folder: true
+input_dir: 'og_csv'
+
+shp_filepath: 'HUC8_CA_PFAS_GTruth.shp'
+
+buffer_size: 10
+
+output_dir: 'og2'
