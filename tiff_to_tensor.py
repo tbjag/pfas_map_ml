@@ -50,7 +50,7 @@ def process_directory(directory, grid_size, output_directory):
     print('finished')
     
 def main():
-    input_dir = 'large_tiff_data3'
+    input_dir = 'tobeprocessed2'
     grid_size = 10
     output_dir = 'pth_data'
     

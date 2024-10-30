@@ -56,8 +56,8 @@ def embiggen(filepath, outputdir):
 
 
 def main():
-    input_dir = 'og2'
-    output_dir = 'large_tiff_data3'
+    input_dir = 'tobeprocessed2'
+    output_dir = '.'
     
     process_directory(input_dir, output_dir)
 
