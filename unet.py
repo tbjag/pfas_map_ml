@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
+import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset, random_split
 import os
 from tqdm import tqdm
@@ -16,7 +17,6 @@ input_tensor = torch.cat(tensors, dim=1)
 target_tensor = torch.load('HUC8_CA_PFAS_GTruth_Summa2.pth')
 
 print('input tensor shape:', input_tensor.shape, 'target shape: ', target_tensor.shape)
-
 concat_tensor = TensorDataset(input_tensor, target_tensor)
 
 # Define split sizes for training and test sets (e.g., 80-20 split)
@@ -28,71 +28,32 @@ train_data, test_data = random_split(concat_tensor, [train_size, test_size])
 train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
 test_loader = DataLoader(test_data, batch_size=64, shuffle=False)
 
-class UNet(nn.Module):
-    def __init__(self, in_channels=18, out_channels=1):
-        super(UNet, self).__init__()
-
-        def conv_block(in_c, out_c):
-            block = nn.Sequential(
-                nn.Conv2d(in_c, out_c, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True),
-                nn.Conv2d(out_c, out_c, kernel_size=3, padding=1),
-                nn.ReLU(inplace=True)
-            )
-            return block
-
-        def down_block(in_c, out_c):
-            block = nn.Sequential(
-                nn.MaxPool2d(2),
-                conv_block(in_c, out_c)
-            )
-            return block
-
-        def up_block(in_c, out_c):
-            block = nn.Sequential(
-                nn.ConvTranspose2d(in_c, out_c, kernel_size=2, stride=2),
-                conv_block(out_c, out_c)
-            )
-            return block
-
-        # Encoder
-        self.enc1 = conv_block(in_channels, 64)
-        self.enc2 = down_block(64, 128)
-
-        # Bottleneck
-        self.bottleneck = conv_block(128, 256)
-
-        # Decoder
-        self.dec2 = up_block(256, 128)
-        self.dec1 = conv_block(128, 64)
-
-        # Adjustment layer for skip connection
-        self.adjust_e1_channels = nn.Conv2d(64, 128, kernel_size=1)
-
-        # Final layer
-        self.final = nn.Conv2d(64, out_channels, kernel_size=1)
+class CNNModel(nn.Module):
+    def __init__(self):
+        super(CNNModel, self).__init__()
+        
+        # Convolutional layers to extract features
+        self.conv1 = nn.Conv2d(in_channels=18, out_channels=32, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1)
+        
+        # Reduce to a single channel output while keeping the spatial dimensions
+        self.output_conv = nn.Conv2d(in_channels=128, out_channels=1, kernel_size=3, padding=1)
 
     def forward(self, x):
-        # Encoder path
-        e1 = self.enc1(x)
-        e2 = self.enc2(e1)
-
-        # Bottleneck
-        b = self.bottleneck(e2)
-
-        # Decoder path
-        d2 = self.dec2(b)
-
-        # Adjust channels of e1 to match d2 before addition
-        e1_adjusted = self.adjust_e1_channels(e1)
-        d1 = self.dec1(d2 + e1_adjusted)  # Skip connection
-
-        # Final output layer
-        out = self.final(d1)
-        return out
+        # Input x has shape [batch_size, 18, 10, 10]
+        
+        x = F.relu(self.conv1(x))  # Shape: [batch_size, 32, 10, 10]
+        x = F.relu(self.conv2(x))  # Shape: [batch_size, 64, 10, 10]
+        x = F.relu(self.conv3(x))  # Shape: [batch_size, 128, 10, 10]
+        
+        # Final layer to get a single output channel (10x10x1)
+        x = self.output_conv(x)    # Shape: [batch_size, 1, 10, 10]
+        
+        return x  # Output shape: [batch_size, 1, 10, 10]
 
     
-model = UNet(18, 1)
+model = CNNModel()
 criterion = nn.MSELoss()  # Adjust this if using a different loss
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
