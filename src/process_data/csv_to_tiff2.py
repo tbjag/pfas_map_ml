@@ -5,7 +5,6 @@ import rasterio
 from rasterio.features import geometry_mask, rasterize
 from rasterio.transform import from_origin
 from rasterio.mask import mask
-from rasterio.enums import Resampling
 
 import argparse
 import yaml
