@@ -5,12 +5,18 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset, random_split
 import os
 from tqdm import tqdm
+import warnings
+import matplotlib.pyplot as plt
+
+warnings.filterwarnings("ignore", category=FutureWarning)
 
 tensors = []
-directory = 'pth_data_small'
+directory = 'data'
+num_channels = 0
 for filename in os.listdir(directory):
     tensor = torch.load(os.path.join(directory, filename))
     tensors.append(tensor)
+    num_channels += 1
 
 input_tensor = torch.cat(tensors, dim=1)
 
@@ -28,32 +34,31 @@ train_data, test_data = random_split(concat_tensor, [train_size, test_size])
 train_loader = DataLoader(train_data, batch_size=64, shuffle=True)
 test_loader = DataLoader(test_data, batch_size=64, shuffle=False)
 
-class CNNModel(nn.Module):
+class Model(nn.Module):
     def __init__(self):
-        super(CNNModel, self).__init__()
+        super(Model, self).__init__()
+        # Initial convolutional layers
+        self.conv1 = nn.Conv2d(in_channels=18, out_channels=64, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1)
+        self.conv3 = nn.Conv2d(in_channels=128, out_channels=64, kernel_size=3, padding=1)
         
-        # Convolutional layers to extract features
-        self.conv1 = nn.Conv2d(in_channels=18, out_channels=32, kernel_size=3, padding=1)
-        self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
-        self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1)
+        # Final layer to reduce channels to 18
+        self.output_conv = nn.Conv2d(in_channels=64, out_channels=18, kernel_size=3, padding=1)
         
-        # Reduce to a single channel output while keeping the spatial dimensions
-        self.output_conv = nn.Conv2d(in_channels=128, out_channels=1, kernel_size=3, padding=1)
+        # Activation function
+        self.relu = nn.ReLU()
 
     def forward(self, x):
-        # Input x has shape [batch_size, 18, 10, 10]
+        # Apply convolutional layers and ReLU activations
+        x = self.relu(self.conv1(x))
+        x = self.relu(self.conv2(x))
+        x = self.relu(self.conv3(x))
+        # Output layer to reduce channels to 18
+        x = self.output_conv(x)
         
-        x = F.relu(self.conv1(x))  # Shape: [batch_size, 32, 10, 10]
-        x = F.relu(self.conv2(x))  # Shape: [batch_size, 64, 10, 10]
-        x = F.relu(self.conv3(x))  # Shape: [batch_size, 128, 10, 10]
-        
-        # Final layer to get a single output channel (10x10x1)
-        x = self.output_conv(x)    # Shape: [batch_size, 1, 10, 10]
-        
-        return x  # Output shape: [batch_size, 1, 10, 10]
-
+        return x
     
-model = CNNModel()
+model = Model()
 criterion = nn.MSELoss()  # Adjust this if using a different loss
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
@@ -96,7 +101,7 @@ def evaluate(model, loader, criterion, device):
 # Training loop
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
-num_epochs = 2  # Set the number of epochs
+num_epochs = 100
 train_losses = []
 test_losses = []
 
@@ -112,5 +117,15 @@ for epoch in range(num_epochs):
     test_loss = evaluate(model, test_loader, criterion, device)
     test_losses.append(test_loss)
     print(f"Test Loss: {test_loss:.4f}")
+
+plt.figure(figsize=(10, 6))
+plt.plot(train_losses, label="Training Loss")
+plt.plot(test_losses, label="Test Loss")
+plt.xlabel("Epoch")
+plt.ylabel("Loss")
+plt.title("Training and Test Losses Over Epochs")
+plt.legend()
+plt.grid(True)
+plt.savefig('losses2.png')
 
 print("Training complete.")
