@@ -1,7 +1,0 @@
-input_dir: '../../data/og_csv'
-
-shp_filepath: '../../HUC8_CA_PFAS_GTruth.shp'
-
-buffer_size: 10
-
-output_dir: '../../data/tiff_temp'
