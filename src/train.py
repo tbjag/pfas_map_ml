@@ -1,4 +1,4 @@
-import dataloader as dt
+import dataloader_pth as dt
 from models.unet import Model
 
 import torch
@@ -11,7 +11,7 @@ model = Model()
 criterion = nn.MSELoss()  # Adjust this if using a different loss
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-train_loader, test_loader = dt.get_dataloaders(64, '../data/train', '/home/thpc/workspace/pfas_map_ml/data/target/HUC8_CA_PFAS_GTruth_Summa3.h5')
+train_loader, test_loader = dt.get_dataloaders(64, '../data/train_pth', '/home/thpc/workspace/pfas_map_ml/data/target_pth/HUC8_CA_PFAS_GTruth_Summa3.pth')
 
 # Training and evaluation functions
 def train_one_epoch(model, loader, criterion, optimizer, device):
