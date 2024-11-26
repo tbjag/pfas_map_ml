@@ -5,11 +5,11 @@ import rasterio
 from rasterio.features import geometry_mask, rasterize
 from rasterio.transform import from_origin
 from rasterio.mask import mask
-from rasterio.enums import Resampling
 
 import argparse
 import yaml
 import os
+from tqdm import tqdm
 
 from constants import COORD_SYSTEM, BUFFER_DIV, NEGATIVE_CONST
 
@@ -70,14 +70,16 @@ def set_geometry(csv_filepath, filename, config: Config):
 
 def transfrom_to_raster(gdf, config, filename):
     xmin, ymin, xmax, ymax = config.shp.total_bounds
-    pixel_size = 0.01  # Adjust as needed
-    width = int((xmax - xmin) / pixel_size)
+    pixel_size = 0.001  # Adjust as needed # TODO
+    width = int((xmax - xmin) / pixel_size) # TODO config this
     height = int((ymax - ymin) / pixel_size)
     transform = from_origin(xmin, ymax, pixel_size, pixel_size)
 
     shapes_with_target = [(geom, value) for geom, value in zip(gdf['geometry'], gdf['target'])] # TODO assumes target col name is target
     
     buffered_raster = rasterize(shapes_with_target, out_shape=(height, width), transform=transform, fill=0, dtype=rasterio.float32)
+
+    # TODO work on changing to true NULL instead of -50 -> 0 -> 1
 
     california_raster = np.zeros((height, width), dtype=np.uint8)
     california_raster_mask = geometry_mask(config.shp['geometry'], transform=transform, invert=True, out_shape=(height, width))
@@ -91,7 +93,7 @@ def transfrom_to_raster(gdf, config, filename):
     with rasterio.open(
         new_raster_path, 'w',
         driver='GTiff',
-        height=combined_raster.shape[0],
+        height=combined_raster.shape[0], # cannot change dim here
         width=combined_raster.shape[1],
         count=1,
         dtype=rasterio.float32,
@@ -125,21 +127,22 @@ def add_null_val(raster_path, config):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--config', type=str, default='config.yaml', help="Path to the YAML configuration file")
+    parser.add_argument('--input_dir', type=str, help="input directory path")
+    parser.add_argument('--shp_filepath', type=str, help="shapefile path")
+    parser.add_argument('--output_dir', type=str, help="output directory path")
+    parser.add_argument('--buffer_size', type=int, help="buffer size radius in km")
+
     args = parser.parse_args()
-    config_yaml = load_config(args.config)
-    check_paths(config_yaml['input_dir'], config_yaml['shp_filepath'], config_yaml['output_dir'])
-    # Access the config values
-    config = Config(config_yaml['input_dir'], config_yaml['shp_filepath'], config_yaml['output_dir'], config_yaml['buffer_size'])
+
+    check_paths(args.input_dir, args.shp_filepath, args.output_dir)
+    config = Config(args.input_dir, args.shp_filepath, args.output_dir, args.buffer_size)
     
     filepaths = queue_files(config.input_dir)
 
-    for filepath, filename in filepaths:
-        print(f'working on {filename}.csv')
+    for filepath, filename in tqdm(filepaths, desc=f"processing {len(filepaths)} files"):
         gdf = set_geometry(filepath, filename, config)
         raster_path = transfrom_to_raster(gdf, config, filename)
         add_null_val(raster_path, config)
-        print(f'saved {filename}.tiff')
 
     print('finished')
 
