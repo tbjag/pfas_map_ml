@@ -66,5 +66,5 @@ if __name__ == "__main__":
 
     # Iterate through the DataLoader
     for train, target in train_loader:
-        print(f"Combined batch shape: {train.shape} {target.shape}")  # Expected: [2048, num_folders, 10, 10]
+        print(f"Combined batch shape: {train.shape} {target.shape}")
         break

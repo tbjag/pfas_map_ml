@@ -1,5 +1,9 @@
-import torch
+import numpy as np
 
-x = torch.load('data/final_target/0000002.pth')
+# Sample NumPy array
+data = np.array([10, 20, 30, 40, 50])
 
-print(x.shape)
+# Min-max normalization
+data_normalized = (data - data.min()) / (data.max() - data.min())
+
+print(data_normalized)

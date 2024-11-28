@@ -14,11 +14,12 @@ from tqdm import tqdm
 from constants import COORD_SYSTEM, BUFFER_DIV, NEGATIVE_CONST
 
 class Config:
-    def __init__(self, input_dir, shp_filepath, output_dir, buffer_size) -> None:
+    def __init__(self, input_dir, shp_filepath, output_dir, buffer_size, is_categorical) -> None:
         self.input_dir = input_dir
         self.shp = get_shp(shp_filepath)
         self.output_dir = output_dir
         self.buffer_size = buffer_size / BUFFER_DIV
+        self.is_categorical = is_categorical
 
 def load_config(yaml_filepath):
     with open(yaml_filepath, 'r') as file:
@@ -57,14 +58,17 @@ def get_shp(shp_filepath):
     california_border.crs = COORD_SYSTEM
     return california_border
 
-def set_geometry(csv_filepath, filename, config: Config):
+def set_geometry(csv_filepath, config: Config):
     df = pd.read_csv(csv_filepath)
     # TODO should always contain lon, lat as data
     gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df['lon'], df['lat']), crs="EPSG:32633")
-    gdf['geometry'] = gdf['geometry'].buffer(config.buffer_size)  # Buffer the points 5km
+    gdf['geometry'] = gdf['geometry'].buffer(config.buffer_size)  # Buffer the points 
 
-    # TODO everything in this script contains target rn
-    gdf['target'] = 2
+    # change to discrete or categorical
+    if config.is_categorical:
+        gdf['target'] = 2
+    else:
+        gdf['target'] += 1 # add 1 until we fix null border issue
 
     return gdf
 
@@ -83,7 +87,7 @@ def transfrom_to_raster(gdf, config, filename):
 
     california_raster = np.zeros((height, width), dtype=np.uint8)
     california_raster_mask = geometry_mask(config.shp['geometry'], transform=transform, invert=True, out_shape=(height, width))
-    california_raster[california_raster_mask] = 1  # Set pixels inside California border to 0
+    california_raster[california_raster_mask] = 1  # TODO Set pixels inside California border to 0
 
     combined_raster = np.maximum(buffered_raster, california_raster)
 
@@ -131,16 +135,17 @@ def main():
     parser.add_argument('--shp_filepath', type=str, help="shapefile path")
     parser.add_argument('--output_dir', type=str, help="output directory path")
     parser.add_argument('--buffer_size', type=int, help="buffer size radius in km")
+    parser.add_argument('--is_categorical', type=lambda x: x.lower() == 'true', help='if the directory contains categorical variables')
 
     args = parser.parse_args()
 
     check_paths(args.input_dir, args.shp_filepath, args.output_dir)
-    config = Config(args.input_dir, args.shp_filepath, args.output_dir, args.buffer_size)
+    config = Config(args.input_dir, args.shp_filepath, args.output_dir, args.buffer_size, args.is_categorical)
     
     filepaths = queue_files(config.input_dir)
 
     for filepath, filename in tqdm(filepaths, desc=f"processing {len(filepaths)} files"):
-        gdf = set_geometry(filepath, filename, config)
+        gdf = set_geometry(filepath, config)
         raster_path = transfrom_to_raster(gdf, config, filename)
         add_null_val(raster_path, config)
 
