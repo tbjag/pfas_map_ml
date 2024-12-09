@@ -5,7 +5,7 @@ import numpy as np
 import argparse
 from tqdm import tqdm
 
-def tiff_to_tensor(tiff_file, grid_size, output_directory):
+def tiff_to_h5(tiff_file, grid_size, output_directory):
     # Load the TIFF file
     with rasterio.open(tiff_file) as src:
         tiff_data = src.read()
@@ -13,7 +13,7 @@ def tiff_to_tensor(tiff_file, grid_size, output_directory):
         _, original_height, original_width = tiff_data.shape
         cells = []
 
-        for i in tqdm(range(0, original_height, grid_size), desc=f'processing {tiff_file}'):
+        for i in tqdm(range(0, original_height, grid_size), desc=f'processing {os.path.basename(tiff_file)}'):
             for j in range(0, original_width, grid_size):
                 cell = tiff_data[:, i:i+grid_size, j:j+grid_size]
                 if cell.shape == (1, grid_size, grid_size): # maybe just save as 10x10 instead of 1x10x10 TODO
@@ -46,7 +46,7 @@ def process_directory(directory, grid_size, output_directory):
             if file.endswith('.tif') or file.endswith('.tiff'):
                 tiff_file = os.path.join(root, file)
                 try:
-                    tiff_to_tensor(tiff_file, grid_size, output_directory)
+                    tiff_to_h5(tiff_file, grid_size, output_directory)
                 except Exception as e:
                     print(f"Failed to process {tiff_file}: {e}")
     print('finished')

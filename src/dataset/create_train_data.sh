@@ -7,7 +7,7 @@ OUTPUT_DIR_TIFF="../../data/tiff_temp"
 BUFFER_SIZE=10
 
 INPUT_DIR_BIG_TIFF="../../data/tiff_temp"
-OUTPUT_DIR_H5="../../data/train"
+OUTPUT_DIR_H5="../../data/h5"
 GRID_SIZE=10
 
 # Run the Python scripts with the specified variables
