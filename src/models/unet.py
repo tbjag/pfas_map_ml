@@ -1,10 +1,5 @@
-import torch
 import torch.nn as nn
-import torch.optim as optim
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset, random_split
-import os
-from tqdm import tqdm
 
 class Model(nn.Module):
     def __init__(self):

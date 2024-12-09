@@ -1,61 +1,48 @@
-# util bla blah blah
 import os
-import h5py
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 
-class H5Dataset(Dataset):
-    def __init__(self, directory, target_file):
+class PTHDataset(Dataset):
+    def __init__(self, train_dir, target_dir):
         """
+        Initialize dataset by organizing batches across folders.
+
         Args:
-            directory (str): Path to the directory containing HDF5 files.
-            target_file (str): Path to the HDF5 file containing target data.
+            root_dir (str): Root directory containing folders of data.
         """
-        self.directory = directory
-        self.h5_files = [
-            os.path.join(directory, f) for f in os.listdir(directory) if f.endswith('.h5')
-        ]
-        if not self.h5_files:
-            raise ValueError(f"No HDF5 files found in directory: {directory}")
-        self.num_files = len(self.h5_files)
+        self.train_dir = train_dir
+        self.target_dir = target_dir
 
-        # Load target file lazily
-        self.target_file = target_file
-        with h5py.File(self.target_file, 'r') as h5:
-            self.target_data = h5['cells'][:]  # Load the entire target data to memory
-            if self.target_data.shape[1:] != (1, 10, 10):
-                raise ValueError(f"Target data shape {self.target_data.shape[1:]} does not match (1, 10, 10)")
-
-        # Validate that the number of samples matches across all files
-        self.num_samples = self.target_data.shape[0]
+        # Determine the number of batches (files) in each folder
+        self.num_batches = len(sorted(os.listdir(self.train_dir))) # Assuming all folders have the same structure
+        self.batch_files = [f"{i:07}.pth" for i in range(self.num_batches)]
 
     def __len__(self):
-        """Returns the number of samples."""
-        return self.num_samples
+        """Returns the total number of batches across all folders."""
+        return self.num_batches
 
-    def __getitem__(self, index):
+    def __getitem__(self, idx):
         """
-        Fetches the `index`th sample from all files and the corresponding target.
+        Retrieves the batch across all folders at a given index.
+
+        Args:
+            idx (int): Index of the batch to load from each folder.
+
+        Returns:
+            torch.Tensor: Concatenated tensor across all folders.
         """
-        input_data = []
-        for h5_file in self.h5_files:
-            with h5py.File(h5_file, 'r') as h5:
-                # Read the `index`th sample from the dataset in each file
-                data = h5['cells'][index]  # Shape: (1, 10, 10)
-                input_data.append(data.squeeze())  # Remove the singleton dimension, shape: (10, 10)
 
-        # Stack along a new dimension for NUM_H5_FILES
-        input_data = torch.tensor(input_data, dtype=torch.float32)  # Shape: (NUM_H5_FILES, 10, 10)
+        train_file = os.path.join(self.train_dir, self.batch_files[idx])
+        train = torch.load(train_file)
+        target_file = os.path.join(self.target_dir, self.batch_files[idx])
+        target = torch.load(target_file)
 
-        # Get the corresponding target sample
-        target = torch.tensor(self.target_data[index], dtype=torch.float32)  # Shape: (1, 10, 10)
+        # Concatenate along the second dimension (folder axis)
+        return train, target
 
-        return input_data, target
-
-
-def get_dataloaders(batch_size, directory, target_file):
+def get_dataloaders(directory, target_file, batch_size):
     # Create the dataset and dataloader
-    dataset = H5Dataset(directory, target_file)
+    dataset = PTHDataset(directory, target_file)
 
     # Split the dataset into train and test sets
     train_size = int(0.8 * len(dataset))
@@ -67,3 +54,17 @@ def get_dataloaders(batch_size, directory, target_file):
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
     return train_loader, test_loader
+
+# Usage example
+if __name__ == "__main__":
+    # Root directory containing the folders of batch data
+    root_folder = "../data/final_train"
+    target_folder = "../data/final_target"
+
+    # Create DataLoader
+    train_loader, _ = get_dataloaders(root_folder, target_folder, 1)
+
+    # Iterate through the DataLoader
+    for train, target in train_loader:
+        print(f"Combined batch shape: {train.shape} {target.shape}")  # Expected: [2048, num_folders, 10, 10]
+        break
