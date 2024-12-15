@@ -1,5 +1,5 @@
 import dataloader as dt
-from models.unet import Model
+from models.test_cnn import Model
 
 import torch
 import torch.nn as nn

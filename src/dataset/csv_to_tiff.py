@@ -4,10 +4,8 @@ import numpy as np
 import rasterio
 from rasterio.features import geometry_mask, rasterize
 from rasterio.transform import from_origin
-from rasterio.mask import mask
 
 import argparse
-import yaml
 import os
 from tqdm import tqdm
 
@@ -20,18 +18,14 @@ class Config:
         self.output_dir = output_dir
         self.buffer_size = buffer_size / BUFFER_DIV
 
-def load_config(yaml_filepath):
-    with open(yaml_filepath, 'r') as file:
-        config = yaml.safe_load(file)
-    return config
-
 def queue_files(dir_path):
     file_info  = []
     for root, _, files in os.walk(dir_path):
         for file in files:
-            full_path = os.path.join(root, file)
-            file_name = os.path.splitext(file)[0]  # Get filename without extension
-            file_info.append((full_path, file_name))
+            if file.endswith('.csv'):
+                full_path = os.path.join(root, file)
+                file_name = os.path.splitext(file)[0]  # Get filename without extension
+                file_info.append((full_path, file_name))
     return file_info
 
 def check_paths(dir_path, shp_path, output_dir):
@@ -57,80 +51,72 @@ def get_shp(shp_filepath):
     california_border.crs = COORD_SYSTEM
     return california_border
 
-def set_geometry(csv_filepath, filename, config: Config):
+def set_geometry(csv_filepath, config: Config):
     df = pd.read_csv(csv_filepath)
     # TODO should always contain lon, lat as data
     gdf = gpd.GeoDataFrame(df, geometry=gpd.points_from_xy(df['lon'], df['lat']), crs="EPSG:32633")
     gdf['geometry'] = gdf['geometry'].buffer(config.buffer_size)  # Buffer the points 5km
 
-    # TODO everything in this script contains target rn
-    gdf['target'] = 2
+    # TODO everything in this script contains target rn, uncomment if target already exists
+    gdf['target'] = 1
 
     return gdf
 
 def transfrom_to_raster(gdf, config, filename):
+    # Calculate raster dimensions based on shapefile bounds
     xmin, ymin, xmax, ymax = config.shp.total_bounds
-    pixel_size = 0.001  # Adjust as needed # TODO
-    width = int((xmax - xmin) / pixel_size) # TODO config this
+    pixel_size = 0.001  # Adjust as needed
+    width = int((xmax - xmin) / pixel_size)
     height = int((ymax - ymin) / pixel_size)
     transform = from_origin(xmin, ymax, pixel_size, pixel_size)
 
-    shapes_with_target = [(geom, value) for geom, value in zip(gdf['geometry'], gdf['target'])] # TODO assumes target col name is target
+    # Create a mask for California shape
+    california_raster_mask = geometry_mask(
+        config.shp['geometry'], 
+        transform=transform, 
+        invert=True,  # Invert to get True inside the shape
+        out_shape=(height, width)
+    )
+
+    shapes_with_target = [(geom, value) for geom, value in zip(gdf['geometry'], gdf['target'])]
+    buffered_raster = rasterize(
+        shapes_with_target, 
+        out_shape=(height, width), 
+        transform=transform, 
+        fill=0,  # Default fill value
+        dtype=rasterio.float32
+    )
+
+    final_raster = np.full((height, width), NEGATIVE_CONST, dtype=rasterio.float32)
+    final_raster[california_raster_mask] = 0
     
-    buffered_raster = rasterize(shapes_with_target, out_shape=(height, width), transform=transform, fill=0, dtype=rasterio.float32)
+    # Overlay buffered points on top of California shape
+    # This ensures buffered points are visible only inside California
+    mask_and_buffer = (california_raster_mask & (buffered_raster > 0))
+    final_raster[mask_and_buffer] = buffered_raster[mask_and_buffer]
 
-    # TODO work on changing to true NULL instead of -50 -> 0 -> 1
-
-    california_raster = np.zeros((height, width), dtype=np.uint8)
-    california_raster_mask = geometry_mask(config.shp['geometry'], transform=transform, invert=True, out_shape=(height, width))
-    california_raster[california_raster_mask] = 1  # Set pixels inside California border to 0
-
-    combined_raster = np.maximum(buffered_raster, california_raster)
-
-    new_raster_path = os.path.join(config.output_dir, filename)
-    new_raster_path += '.tiff'
+    new_raster_path = os.path.join(config.output_dir, filename + '.tiff')
 
     with rasterio.open(
-        new_raster_path, 'w',
+        new_raster_path, 
+        'w',
         driver='GTiff',
-        height=combined_raster.shape[0], # cannot change dim here
-        width=combined_raster.shape[1],
+        height=final_raster.shape[0],
+        width=final_raster.shape[1],
         count=1,
         dtype=rasterio.float32,
         crs="EPSG:4269",
         transform=transform,
+        nodata=NEGATIVE_CONST
     ) as dst:
-        dst.write(combined_raster, 1)
-
-    return new_raster_path
-
-def add_null_val(raster_path, config):
-    # Mask out values outside California
-    ca_shapes = [feature["geometry"] for feature in config.shp.__geo_interface__["features"]]
-    with rasterio.open(raster_path, 'r+') as src:
-        # Read the entire raster
-        data = src.read(1)
-
-        # Generate mask
-        mask_array, _ = mask(src, ca_shapes, crop=False)
-
-        # Set values outside the mask to NoData
-        nodata_value = src.nodata if src.nodata is not None else NEGATIVE_CONST
-        data[mask_array[0] == False] = nodata_value
-
-        # Update metadata to include NoData value
-        out_meta = src.meta.copy()
-        out_meta.update({"nodata": nodata_value})
-
-        src.write(data, 1)
-
+        dst.write(final_raster, 1)
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--input_dir', type=str, help="input directory path")
-    parser.add_argument('--shp_filepath', type=str, help="shapefile path")
-    parser.add_argument('--output_dir', type=str, help="output directory path")
-    parser.add_argument('--buffer_size', type=int, help="buffer size radius in km")
+    parser.add_argument('-i', '--input_dir', type=str, help="input directory path", required=True)
+    parser.add_argument('-s', '--shp_filepath', type=str, help="shapefile path", required=True)
+    parser.add_argument('-o', '--output_dir', type=str, help="output directory path", required=True)
+    parser.add_argument('-b', '--buffer_size', type=int, help="buffer size radius in km", required=True)
 
     args = parser.parse_args()
 
@@ -140,9 +126,8 @@ def main():
     filepaths = queue_files(config.input_dir)
 
     for filepath, filename in tqdm(filepaths, desc=f"processing {len(filepaths)} files"):
-        gdf = set_geometry(filepath, filename, config)
-        raster_path = transfrom_to_raster(gdf, config, filename)
-        add_null_val(raster_path, config)
+        gdf = set_geometry(filepath, config)
+        transfrom_to_raster(gdf, config, filename)
 
     print('finished')
 
