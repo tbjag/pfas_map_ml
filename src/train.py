@@ -12,7 +12,7 @@ model = Model()
 criterion = nn.MSELoss()  # Adjust this if using a different loss
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-train_loader, test_loader = dt.get_dataloaders('../data/final_train', '../data/final_target', 32)
+train_loader, test_loader = dt.get_dataloaders('/media/data/iter2/train', '/media/data/iter2/target', 8)
 
 # Training and evaluation functions
 def train_one_epoch(model, loader, criterion, optimizer, device):
@@ -56,7 +56,7 @@ def evaluate(model, loader, criterion, device):
 # Training loop
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
-num_epochs = 100  # Set the number of epochs
+num_epochs = 10  # Set the number of epochs
 train_losses = []
 test_losses = []
 

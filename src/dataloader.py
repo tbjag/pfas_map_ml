@@ -58,8 +58,8 @@ def get_dataloaders(directory, target_file, batch_size):
 # Usage example
 if __name__ == "__main__":
     # Root directory containing the folders of batch data
-    root_folder = "../data/final_train"
-    target_folder = "../data/final_target"
+    root_folder = "/media/data/iter2/train"
+    target_folder = "/media/data/iter2/target"
 
     # Create DataLoader
     train_loader, _ = get_dataloaders(root_folder, target_folder, 1)

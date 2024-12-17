@@ -12,12 +12,11 @@ from tqdm import tqdm
 from constants import COORD_SYSTEM, BUFFER_DIV, NEGATIVE_CONST
 
 class Config:
-    def __init__(self, input_dir, shp_filepath, output_dir, buffer_size, is_categorical) -> None:
+    def __init__(self, input_dir, shp_filepath, output_dir, buffer_size) -> None:
         self.input_dir = input_dir
         self.shp = get_shp(shp_filepath)
         self.output_dir = output_dir
         self.buffer_size = buffer_size / BUFFER_DIV
-        self.is_categorical = is_categorical
 
 def queue_files(dir_path):
     file_info  = []
@@ -59,7 +58,7 @@ def set_geometry(csv_filepath, config: Config):
     gdf['geometry'] = gdf['geometry'].buffer(config.buffer_size)  # Buffer the points 
 
     # TODO everything in this script contains target rn, uncomment if target already exists
-    gdf['target'] = 1
+    # gdf['target'] = 1
 
     return gdf
 
@@ -122,7 +121,7 @@ def main():
     args = parser.parse_args()
 
     check_paths(args.input_dir, args.shp_filepath, args.output_dir)
-    config = Config(args.input_dir, args.shp_filepath, args.output_dir, args.buffer_size, args.is_categorical)
+    config = Config(args.input_dir, args.shp_filepath, args.output_dir, args.buffer_size)
     
     filepaths = queue_files(config.input_dir)
 

@@ -1,16 +1,13 @@
 # Set the variables
-INPUT_DIR_CSV="../../data/tiff"
-OUTPUT_DIR_TIFF="../../data/train"
+INPUT_DIR="/media/data/iter2/processed_tiffs"
+OUTPUT_DIR="/media/data/iter2/train"
+LOCATIONS="/media/data/ground_truth/ground_truth_valid_locations.txt"
 GRID_SIZE=32
 
 # Run the Python scripts with the specified variables
-python train_to_data.py \
-  --input_dir="$INPUT_DIR_CSV" \
-  --output_dir="$OUTPUT_DIR_TIFF" \
-  --grid_size=$GRID_SIZE
+python tiff_to_tensor.py \
+  -i="$INPUT_DIR" \
+  -o="$OUTPUT_DIR" \
+  -l="$LOCATIONS" \
+  -v
 
-# for single PFAS files
-# python target_to_data.py \
-#   --input_dir="$INPUT_DIR_CSV" \
-#   --output_dir="$OUTPUT_DIR_TIFF" \
-#   --grid_size=$GRID_SIZE
