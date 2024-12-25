@@ -13,5 +13,13 @@ python csv_to_tif.py
 
 ## TODOS
 
-- standardize tiff to tensor.py = read in config = change so that it doesnt read all dirs; just one
-- read in 
+- change dataloader to add in target
+- test dataloader on unet
+
+- data augmentation = flips and whatever we do to images
+- add readme to processing file folder
+- add error checking for lat/lon/target inputs
+- for target = specify discrete or boolean
+- config pixel size = think more on this
+- change the way we handle null vals -50 -> 0 -> 1
+- maybe change cell stacking from (x, 1, 10, 10) -> (x, 10, 10)
