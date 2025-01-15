@@ -1,6 +1,7 @@
 # PFAS Machine Learning Research Repository
-## Introduction
-This repository focuses on preparing geographical data for machine learning models, particularly convolutional neural networks (CNNs) and U-Net architectures. The goal is to transform raw geospatial data into tensors that can be directly used for training and validation.
+## Introduction 
+
+This repository is dedicated to preparing geographical data for machine learning applications, with a focus on convolutional neural networks (CNNs) and U-Net architectures. Its primary objective is to convert raw geospatial data into tensors, making them ready for use in training and validation workflows.
 
 ## Workflow
 The data processing pipeline consists of several stages:
@@ -8,11 +9,13 @@ The data processing pipeline consists of several stages:
 1. CSV to TIFF Conversion
 
     - Raw data points, provided in CSV format, are converted into TIFF files.
+    - Convert coordinate system to correct standard.
     - These TIFFs are cropped to align with the ground truth data, ensuring a one-to-one correspondence between the input data and target labels.
 
 2. Processing Existing TIFFs
 
     - Pre-existing TIFF files are resized and cropped to match the target format.
+    - Convert coordinate system to correct standard.
     - The coordinate reference system (CRS) is standardized to ensure consistency with the ground truth data.
 
 3. TIFF to Tensor Conversion
