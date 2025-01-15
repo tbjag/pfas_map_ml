@@ -4,7 +4,6 @@ from models.test_cnn import Model
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 
@@ -12,7 +11,7 @@ model = Model()
 criterion = nn.MSELoss()  # Adjust this if using a different loss
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-train_loader, test_loader = dt.get_dataloaders('/media/data/iter2/train', '/media/data/iter2/target', 8)
+train_loader, test_loader = dt.get_dataloaders('/media/data/iter2/train', '/media/data/iter2/target', 2)
 
 # Training and evaluation functions
 def train_one_epoch(model, loader, criterion, optimizer, device):
