@@ -8,7 +8,7 @@ class Model(nn.Module):
         # Input: 5x10x10, Output: 16x10x10
         # Padding='same' to maintain spatial dimensions
         self.conv1 = nn.Conv2d(
-            in_channels=263,
+            in_channels=4,
             out_channels=16,
             kernel_size=3,
             padding='same'

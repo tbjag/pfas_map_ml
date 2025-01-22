@@ -14,7 +14,7 @@ class PTHDataset(Dataset):
         self.target_dir = target_dir
 
         # Determine the number of batches (files) in each folder
-        self.num_batches = len(sorted(os.listdir(self.train_dir))) # Assuming all folders have the same structure
+        self.num_batches = len(sorted(os.listdir(self.train_dir))) # Assuming both folders have the same structure
         self.batch_files = [f"{i:07}.pth" for i in range(self.num_batches)]
 
     def __len__(self):
@@ -58,8 +58,8 @@ def get_dataloaders(directory, target_file, batch_size):
 # Usage example
 if __name__ == "__main__":
     # Root directory containing the folders of batch data
-    root_folder = "/media/data/iter2/train"
-    target_folder = "/media/data/iter2/target"
+    root_folder = "/media/data/iter3/train"
+    target_folder = "/media/data/iter3/target"
 
     # Create DataLoader
     train_loader, _ = get_dataloaders(root_folder, target_folder, 1)

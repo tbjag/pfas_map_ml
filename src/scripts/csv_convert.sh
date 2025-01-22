@@ -1,12 +1,14 @@
 #!/bin/bash
 
 # CSV to TIFF conversion
-INPUT_DIR_CSV="/media/data/raw/csv_discrete" # TODO 
+INPUT_DIR_CSV="/media/data/raw/csv_categorical" # CHANGE 
 SHP_FILEPATH="/media/data/const_shapes/border_outline.shp"
-OUTPUT_DIR_TIFF="/media/data/iter2/processed_csv_dis" # TODO
+OUTPUT_DIR_TIFF="/media/data/iter3/processed_csv_cat" # CHANGE
 BUFFER_SIZE=10
 
 OUTPUT_DIR="media/data/iter2/train"
+
+cd ../dataset
 
 python csv_to_tiff.py \
   --input_dir="$INPUT_DIR_CSV" \

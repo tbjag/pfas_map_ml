@@ -34,7 +34,7 @@ This streamlined process ensures that geographical data is correctly formatted a
 - Install python 3.10.14. (we used pyenv to instantiate our virtual environment (insert link)
 - run `pip install -r requirements.txt` (there might be issues with the torch version and the specific GPU driver)
 
-## Processing commands for csv
+## Processing for csvs
 
 - Rename longitude and latitude columns in every csv to lon and lat respectively.
 - Divide csvs into discrete and categorical data.
@@ -42,12 +42,7 @@ This streamlined process ensures that geographical data is correctly formatted a
 Rename the target value in the discrete data to 'target' and create a new column named target in the categorical data and assign it the value of 1 for all rows. 
 (remember to normalize values)
 
-TODO: RUN COMMAND
-## Processing commands for tiffs
-TODO: RUN COMMAND
-
-## Commands to process tiffs to tensor
-TODO: RUN COMMAND
+Refer to readme in src/ folder for commands
 
 ## WIP below
 
@@ -58,7 +53,10 @@ TBD
 ## TODOS
 
 - data augmentation = flips and whatever we do to images
-- add readme to processing file folder
+    - random resize?
+    - random resize crop?
+    - random rotate
+    - gaussion blur/noise
 - config pixel size = think more on this
 - change the way we handle null vals -50 -> 0 -> 1
 - maybe change cell stacking from (x, 1, 10, 10) -> (x, 10, 10)
