@@ -7,11 +7,12 @@ import torch.optim as optim
 import torch.nn.functional as F
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from unet import UNet
+from unet import *
 
-model = UNet(n_channels=263, n_classes=1)
+model = UNet3(n_channels=263, n_classes=1)
+#model = EnhancedModel()
 criterion = nn.MSELoss()  # Adjust this if using a different loss
-optimizer = optim.Adam(model.parameters(), lr=0.001)
+optimizer = optim.Adam(model.parameters(), lr=1e-4,weight_decay=1e-5)
 
 train_loader, test_loader = dt.get_dataloaders('/media/data/iter2/train', '/media/data/iter2/target', 8)
 
@@ -62,9 +63,11 @@ def evaluate(model, loader, criterion, device):
 # Training loop
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
-num_epochs = 30  # Set the number of epochs
+num_epochs = 200  # Set the number of epochs
 train_losses = []
 test_losses = []
+
+min_test_loss = -1
 
 for epoch in range(num_epochs):
     print(f"Epoch {epoch+1}/{num_epochs}")
@@ -79,6 +82,10 @@ for epoch in range(num_epochs):
     test_losses.append(test_loss)
     print(f"Test Loss: {test_loss:.4f}")
 
+    if min_test_loss == -1 or test_loss < min_test_loss:
+        min_test_loss = test_loss
+        torch.save(model.state_dict(), "trained_models/unet3_25do_l2_slow.pth")
+
 # Plot the losses
 plt.figure(figsize=(10, 6))
 plt.plot(train_losses, label='Training Loss', color='blue', marker='o')
@@ -91,6 +98,6 @@ plt.title('Training and Test Loss Over Epochs')
 plt.legend()
 
 # Save the figure
-plt.savefig('loss_plot.png', dpi=300)
+plt.savefig('plots/unet3_25do_l2_slow.png', dpi=300)
 
 print("Training complete.")
