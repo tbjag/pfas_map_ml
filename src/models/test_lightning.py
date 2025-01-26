@@ -1,7 +1,8 @@
 import torch.nn as nn
 from pytorch_lightning import LightningModule
+from torch.optim import Adam
 
-class Model(nn.Module):
+class Model(LightningModule):
     def __init__(self):
         super(Model, self).__init__()
         
@@ -50,5 +51,16 @@ class Model(nn.Module):
         # Final 1x1 convolution
         x = self.conv3(x)
         return x
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_pred = self(x)
+        loss = self.criterion(y_pred, y)
+        self.log("train_loss", loss)
+        return loss
+
+    def configure_optimizers(self):
+        optimizer = Adam(self.parameters(), lr=1e-3)
+        return optimizer
 
     

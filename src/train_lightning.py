@@ -1,12 +1,11 @@
-from pytorch_lightning import LightningModule, Trainer
+from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger
+import dataloader as dt
 
-# Define your model
-class MyModel(LightningModule):
-    def __init__(self):
-        super().__init__()
-        # Your model, loss, optimizer, etc.
+from models.test_lightning import Model
+
+train_loader, test_loader = dt.get_dataloaders('/media/data/iter3/train', '/media/data/iter3/target', 64)
 
 # Set up logging and checkpointing
 logger = TensorBoardLogger("logs", name="my_model")
@@ -22,5 +21,5 @@ trainer = Trainer(
     callbacks=[checkpoint_callback],
     max_epochs=10
 )
-model = MyModel()
-trainer.fit(model)
+model = Model()
+trainer.fit(model, train_loader, test_loader)
