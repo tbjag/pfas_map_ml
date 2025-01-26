@@ -33,14 +33,14 @@ class PTHDataset(Dataset):
         """
 
         train_file = os.path.join(self.train_dir, self.batch_files[idx])
-        train = torch.load(train_file)
+        train = torch.load(train_file, weights_only=False)
         target_file = os.path.join(self.target_dir, self.batch_files[idx])
-        target = torch.load(target_file)
+        target = torch.load(target_file, weights_only=False)
 
         # Concatenate along the second dimension (folder axis)
         return train, target
 
-def get_dataloaders(directory, target_file, batch_size):
+def get_dataloaders(directory, target_file, batch_size, num_workers):
     # Create the dataset and dataloader
     dataset = PTHDataset(directory, target_file)
 
@@ -50,8 +50,8 @@ def get_dataloaders(directory, target_file, batch_size):
     train_dataset, test_dataset = random_split(dataset, [train_size, test_size])
 
     # Create DataLoader objects
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
 
     return train_loader, test_loader
 

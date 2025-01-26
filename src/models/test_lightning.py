@@ -55,9 +55,15 @@ class Model(LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_pred = self(x)
-        loss = self.criterion(y_pred, y)
+        loss = nn.functional.mse_loss(y_pred, y)
         self.log("train_loss", loss)
         return loss
+    
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_pred = self(x)
+        loss = nn.functional.mse_loss(y_pred, y)
+        self.log("val_loss", loss, prog_bar=True) 
 
     def configure_optimizers(self):
         optimizer = Adam(self.parameters(), lr=1e-3)

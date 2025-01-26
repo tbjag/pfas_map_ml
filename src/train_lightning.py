@@ -5,10 +5,10 @@ import dataloader as dt
 
 from models.test_lightning import Model
 
-train_loader, test_loader = dt.get_dataloaders('/media/data/iter3/train', '/media/data/iter3/target', 64)
+train_loader, test_loader = dt.get_dataloaders('/media/data/iter3/train', '/media/data/iter3/target', 64, 8)
 
 # Set up logging and checkpointing
-logger = TensorBoardLogger("logs", name="my_model")
+logger = TensorBoardLogger("logs", name="val_test")
 checkpoint_callback = ModelCheckpoint(
     monitor="val_loss",  # Metric to monitor
     save_top_k=1,        # Save only the best model
@@ -19,7 +19,7 @@ checkpoint_callback = ModelCheckpoint(
 trainer = Trainer(
     logger=logger,
     callbacks=[checkpoint_callback],
-    max_epochs=10
+    max_epochs=1
 )
 model = Model()
 trainer.fit(model, train_loader, test_loader)
