@@ -1,4 +1,5 @@
-# from https://github.com/milesial/Pytorch-UNet/tree/master for testing unet
+# from https://github.com/milesial/Pytorch-UNet/tree/master
+# implementation of unet layers for encoding and decoding
 
 import torch
 import torch.nn as nn
