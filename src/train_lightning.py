@@ -8,7 +8,7 @@ from models.test_lightning import Model
 train_loader, test_loader = dt.get_dataloaders('/media/data/iter3/train', '/media/data/iter3/target', 64, 8)
 
 # Set up logging and checkpointing
-logger = TensorBoardLogger("logs", name="val_test")
+logger = TensorBoardLogger("logs", name="val_test2")
 checkpoint_callback = ModelCheckpoint(
     monitor="val_loss",  # Metric to monitor
     save_top_k=1,        # Save only the best model
