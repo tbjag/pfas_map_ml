@@ -11,10 +11,18 @@ from models.unet1 import UNet
 from models.unet2 import UNet2  
 from models.unet3 import UNet3
 import models.test_cnn as test_cnn
+from models.simplest_cnn import SimplestCNN
 
-model = UNet3(n_channels=263, n_classes=1)
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision.models as models
+
+
+# model = UNet3(n_channels=263, n_classes=1)
 #model = EnhancedModel()
-# model = test_cnn.Model()
+model = test_cnn.Model()
+# model = SimplestCNN()
 criterion = nn.MSELoss()  # Adjust this if using a different loss
 optimizer = optim.Adam(model.parameters(), lr=1e-4) # weight_decay=1e-5
 
@@ -67,7 +75,7 @@ def evaluate(model, loader, criterion, device):
 # Training loop
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
-num_epochs = 500  # Set the number of epochs
+num_epochs = 1000  # Set the number of epochs
 train_losses = []
 test_losses = []
 
@@ -90,7 +98,7 @@ for epoch in range(num_epochs):
     if min_test_loss == -1 or test_loss < min_test_loss:
         min_test_loss = test_loss
         min_epoch = epoch
-        torch.save(model.state_dict(), "trained_models/unet3_25dr_500e.pth")
+        torch.save(model.state_dict(), "trained_models/test_cnn_1000e.pth")
 
 # Plot the losses
 plt.figure(figsize=(10, 6))
@@ -108,6 +116,6 @@ plt.title('Training and Test Loss Over Epochs')
 plt.legend()
 
 # Save the figure
-plt.savefig('plots/unet3_25dr_500e.png', dpi=300)
+plt.savefig('plots/test_cnn_1000e.png', dpi=300)
 
 print("Training complete.")
