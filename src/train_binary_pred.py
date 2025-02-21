@@ -1,13 +1,11 @@
-import dataloader as dt
 from models.binary_cnn import Model
 import torch
-import torch.nn as nn
-import torch.optim as optim
-import torch.nn.functional as F
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 import json
 import os
+from pytorch_lightning import Trainer
+from pytorch_lightning.callbacks import ModelCheckpoint
+from pytorch_lightning.loggers import TensorBoardLogger
 
 class BinaryDataset(torch.utils.data.Dataset):
     def __init__(self, input_dir, label_json_path):
@@ -61,89 +59,22 @@ for inputs, target in train_loader:
     print("Training Target Shape:", target.shape)
     break  # Print shape for only the first batch
 
-# Training and evaluation functions
-def train_one_epoch(model, loader, criterion, optimizer, device):
-    model.train()
-    total_loss = 0
-    for inputs, target in tqdm(loader, desc="Training"):
-        inputs = inputs.to(device)
-        target = target.to(device)
-        # Zero the parameter gradients
-        optimizer.zero_grad()
-        # Forward pass
-        outputs = model(inputs)
-        loss = criterion(outputs, target)  # Assuming a reconstruction task
-        # Backward pass and optimize
-        loss.backward()
-        optimizer.step()
-        
-        total_loss += loss.item() * inputs.size(0)  # Accumulate batch loss
+# Set up logging and checkpointing
+logger = TensorBoardLogger("logs", name="binary_val_test")
+checkpoint_callback = ModelCheckpoint(
+    monitor="val_loss",  # Metric to monitor
+    save_top_k=1,        # Save only the best model
+    mode="min"           # Minimize the monitored metric (e.g., val_loss)
+)
 
-    avg_loss = total_loss / len(loader.dataset)
-    return avg_loss
-
-def evaluate(model, loader, criterion, device):
-    model.eval()
-    total_loss = 0
-    with torch.no_grad():
-        for inputs, target in tqdm(loader, desc="Evaluating"):
-            inputs = inputs.to(device)
-            target = target.to(device)
-            outputs = model(inputs)
-            loss = criterion(outputs, target)
-            total_loss += loss.item()  * inputs.size(0)  # Accumulate batch loss
-
-    avg_loss = total_loss / len(loader.dataset)
-    return avg_loss
-
+# Train the model
+trainer = Trainer(
+    logger=logger,
+    callbacks=[checkpoint_callback],
+    max_epochs=10
+)
 model = Model()
-criterion = nn.BCELoss()  # Needed for binary classification
-optimizer = optim.Adam(model.parameters(), 1e-4) # try lr=0.001 if performance is poor
+trainer.fit(model, train_loader, test_loader)
 
-# Training loop
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model.to(device)
-num_epochs = 5  # Set the number of epochs
-train_losses = []
-test_losses = []
-
-min_test_loss = -1
-min_epoch = -1
-
-training_name = "dummy"
-
-for epoch in range(num_epochs):
-    print(f"Epoch {epoch+1}/{num_epochs}")
-    
-    # Training
-    train_loss = train_one_epoch(model, train_loader, criterion, optimizer, device)
-    train_losses.append(train_loss)
-    print(f"Training Loss: {train_loss:.4f}")
-
-    # Evaluation
-    test_loss = evaluate(model, test_loader, criterion, device)
-    test_losses.append(test_loss)
-    print(f"Test Loss: {test_loss:.4f}")
-
-    if min_test_loss == -1 or test_loss < min_test_loss:
-        min_test_loss = test_loss
-        min_epoch = epoch
-        torch.save(model.state_dict(), f"trained_models/{training_name}.pth")
-
-# Plot the losses
-plt.figure(figsize=(10, 6))
-plt.plot(train_losses, label='Training Loss', color='blue', marker='o')
-plt.plot(test_losses, label='Test Loss', color='orange', marker='o')
-
-plt.scatter(min_epoch, min_test_loss, color='red', label=f'Min Test Loss: {min_test_loss:.2f} (Epoch {min_epoch+1})')
-
-# Add labels, title, and legend
-plt.xlabel('Epoch')
-plt.ylabel('Loss')
-plt.title(f'{training_name}: Training and Test Loss Over Epochs')
-plt.legend()
-
-# Save the figure
-plt.savefig(f'plots/{training_name}.png', dpi=300)
-
-print("Training complete.")
+print("Best model path:", checkpoint_callback.best_model_path)
+print("Best validation loss:", checkpoint_callback.best_model_score)

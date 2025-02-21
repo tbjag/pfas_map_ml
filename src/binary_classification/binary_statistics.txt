@@ -1,0 +1,4 @@
+Mean total: 398815.06696003117
+Median total: 76353.7890625
+Classified by Mean -> 0s: 30120, 1s: 2274
+Classified by Median -> 0s: 16177, 1s: 16217

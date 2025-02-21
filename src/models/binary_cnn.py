@@ -1,6 +1,8 @@
 import torch.nn as nn
+from pytorch_lightning import LightningModule
+from torch.optim import Adam
 
-class Model(nn.Module):
+class Model(LightningModule):
     def __init__(self):
         super(Model, self).__init__()
         
@@ -55,4 +57,21 @@ class Model(nn.Module):
         x = self.fc(x)
         x = self.sigmoid(x)
         return x  # Output shape: [batch, 1]
-        return x
+    
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_pred = self(x)
+        loss = nn.functional.binary_cross_entropy(y_pred, y)
+        self.log("train_loss", loss)
+        return loss
+    
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_pred = self(x)
+        loss = nn.functional.binary_cross_entropy(y_pred, y)
+        self.log("val_loss", loss, prog_bar=True)
+        return loss
+
+    def configure_optimizers(self):
+        optimizer = Adam(self.parameters(), lr=1e-3)
+        return optimizer
