@@ -7,8 +7,22 @@ import torch.optim as optim
 import torch.nn.functional as F
 from tqdm import tqdm
 import matplotlib.pyplot as plt
+from models.unet1 import UNet
+from models.unet2 import UNet2  
+from models.unet3 import UNet3
+import models.test_cnn as test_cnn
+from models.simplest_cnn import SimplestCNN
 
-model = Model()
+import torch
+import torch.nn as nn
+import torch.optim as optim
+import torchvision.models as models
+
+
+# model = UNet3(n_channels=263, n_classes=1)
+#model = EnhancedModel()
+model = test_cnn.Model()
+# model = SimplestCNN()
 criterion = nn.MSELoss()  # Adjust this if using a different loss
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
@@ -60,6 +74,9 @@ num_epochs = 20  # Set the number of epochs
 train_losses = []
 test_losses = []
 
+min_test_loss = -1
+min_epoch = -1
+
 for epoch in range(num_epochs):
     print(f"Epoch {epoch+1}/{num_epochs}")
     
@@ -73,10 +90,19 @@ for epoch in range(num_epochs):
     test_losses.append(test_loss)
     print(f"Test Loss: {test_loss:.4f}")
 
+    if min_test_loss == -1 or test_loss < min_test_loss:
+        min_test_loss = test_loss
+        min_epoch = epoch
+        torch.save(model.state_dict(), "trained_models/test_cnn_1000e.pth")
+
 # Plot the losses
 plt.figure(figsize=(10, 6))
 plt.plot(train_losses, label='Training Loss', color='blue', marker='o')
 plt.plot(test_losses, label='Test Loss', color='orange', marker='o')
+
+# Highlight the minimum test loss point
+plt.scatter(min_epoch, min_test_loss, color='red', label=f'Min Test Loss: {min_test_loss:.2f} (Epoch {min_epoch+1})')
+
 
 # Add labels, title, and legend
 plt.xlabel('Epoch')
