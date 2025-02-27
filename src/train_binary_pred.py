@@ -23,7 +23,8 @@ class BinaryDataset(torch.utils.data.Dataset):
         # Load input tensor
         file_name = self.input_files[idx]
         input_path = os.path.join(self.input_dir, file_name)
-        input_tensor = torch.load(input_path)  # Shape: [263, 32, 32]
+        input_tensor = torch.load(input_path)
+        print(f"File: {file_name}, Shape: {input_tensor.shape}")
         # Get label from JSON (ensure key matches filename)
         label = self.labels[file_name]
         label_tensor = torch.tensor(label, dtype=torch.float32).view(1)  # BCELoss needs float
@@ -50,8 +51,8 @@ def get_dataloaders(input_dir, label_json_path, batch_size, num_workers=1):
     
     return train_loader, test_loader
 
-binary_target = os.path.join(os.path.dirname(__file__), "binary_classification", "binary_target.json")
-train_loader, test_loader = get_dataloaders('/media/data/iter2/train', binary_target, 8, 1)
+binary_target = os.path.join(os.path.dirname(__file__), "binary_classification", "binary_target_iter3.json")
+train_loader, test_loader = get_dataloaders('/media/data/iter3/train', binary_target, 8, 1)
 
 
 for inputs, target in train_loader:
@@ -59,22 +60,22 @@ for inputs, target in train_loader:
     print("Training Target Shape:", target.shape)
     break  # Print shape for only the first batch
 
-# Set up logging and checkpointing
-logger = TensorBoardLogger("logs", name="binary_val_test")
-checkpoint_callback = ModelCheckpoint(
-    monitor="val_loss",  # Metric to monitor
-    save_top_k=1,        # Save only the best model
-    mode="min"           # Minimize the monitored metric (e.g., val_loss)
-)
+# # Set up logging and checkpointing
+# logger = TensorBoardLogger("logs", name="binary_val_test")
+# checkpoint_callback = ModelCheckpoint(
+#     monitor="val_loss",  # Metric to monitor
+#     save_top_k=1,        # Save only the best model
+#     mode="min"           # Minimize the monitored metric (e.g., val_loss)
+# )
 
-# Train the model
-trainer = Trainer(
-    logger=logger,
-    callbacks=[checkpoint_callback],
-    max_epochs=10
-)
-model = Model()
-trainer.fit(model, train_loader, test_loader)
+# # Train the model
+# trainer = Trainer(
+#     logger=logger,
+#     callbacks=[checkpoint_callback],
+#     max_epochs=100
+# )
+# model = Model()
+# trainer.fit(model, train_loader, test_loader)
 
-print("Best model path:", checkpoint_callback.best_model_path)
-print("Best validation loss:", checkpoint_callback.best_model_score)
+# print("Best model path:", checkpoint_callback.best_model_path)
+# print("Best validation loss:", checkpoint_callback.best_model_score)
