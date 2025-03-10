@@ -5,7 +5,8 @@ import json
 import os
 from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
-from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
+import pandas as pd
 
 class BinaryDataset(torch.utils.data.Dataset):
     def __init__(self, input_dir, label_json_path):
@@ -24,7 +25,7 @@ class BinaryDataset(torch.utils.data.Dataset):
         file_name = self.input_files[idx]
         input_path = os.path.join(self.input_dir, file_name)
         input_tensor = torch.load(input_path)
-        print(f"File: {file_name}, Shape: {input_tensor.shape}")
+        #print(f"File: {file_name}, Shape: {input_tensor.shape}")
         # Get label from JSON (ensure key matches filename)
         label = self.labels[file_name]
         label_tensor = torch.tensor(label, dtype=torch.float32).view(1)  # BCELoss needs float
@@ -51,7 +52,7 @@ def get_dataloaders(input_dir, label_json_path, batch_size, num_workers=1):
     
     return train_loader, test_loader
 
-binary_target = os.path.join(os.path.dirname(__file__), "binary_classification", "binary_target_iter3.json")
+binary_target = os.path.join(os.path.dirname(__file__), "/media/data/iter3/bin_target/", "binary_target.json")
 train_loader, test_loader = get_dataloaders('/media/data/iter3/train', binary_target, 8, 1)
 
 
@@ -60,22 +61,45 @@ for inputs, target in train_loader:
     print("Training Target Shape:", target.shape)
     break  # Print shape for only the first batch
 
-# # Set up logging and checkpointing
-# logger = TensorBoardLogger("logs", name="binary_val_test")
-# checkpoint_callback = ModelCheckpoint(
-#     monitor="val_loss",  # Metric to monitor
-#     save_top_k=1,        # Save only the best model
-#     mode="min"           # Minimize the monitored metric (e.g., val_loss)
-# )
+# Set up logging and checkpointing
+logger = TensorBoardLogger("logs", name="iter3_binary")
+csv_logger = CSVLogger("logs", name="iter3_binary")
+checkpoint_callback = ModelCheckpoint(
+    monitor="val_loss",  # Metric to monitor
+    save_top_k=1,        # Save only the best model
+    mode="min"           # Minimize the monitored metric (e.g., val_loss)
+)
 
-# # Train the model
-# trainer = Trainer(
-#     logger=logger,
-#     callbacks=[checkpoint_callback],
-#     max_epochs=100
-# )
-# model = Model()
-# trainer.fit(model, train_loader, test_loader)
+# Train the model
+trainer = Trainer(
+    logger=[logger, csv_logger],
+    callbacks=[checkpoint_callback],
+    max_epochs=2
+)
+model = Model()
+trainer.fit(model, train_loader, test_loader)
 
-# print("Best model path:", checkpoint_callback.best_model_path)
-# print("Best validation loss:", checkpoint_callback.best_model_score)
+# Retrieve logged metrics from the trainer
+metrics = trainer.logged_metrics  # Access metrics logged during training
+
+best_val_loss = trainer.logged_metrics["best_model_val_loss"]
+best_val_acc = trainer.logged_metrics["best_model_val_acc"]
+print(f"Best model validation loss: {best_val_loss}")
+print(f"Best model validation accuracy: {best_val_acc}")
+
+# Extract loss values
+# train_losses = trainer.callback_metrics.get("train_loss").cpu().numpy()
+# val_losses = trainer.callback_metrics.get("val_loss").cpu().numpy()
+
+# Plot the losses
+# plt.plot(train_losses, label="Training Loss")
+# plt.plot(val_losses, label="Validation Loss")
+# plt.xlabel("Epoch")
+# plt.ylabel("Loss")
+# plt.title("Training & Validation Loss Over Time")
+# plt.legend()
+# plt.savefig("plot.png")
+# plt.show()
+
+print("Best model path:", checkpoint_callback.best_model_path)
+print("Best validation loss:", checkpoint_callback.best_model_score)

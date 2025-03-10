@@ -6,12 +6,27 @@ import torchmetrics
 class Model(LightningModule):
     def __init__(self):
         super(Model, self).__init__()
+        self.train_accuracy = torchmetrics.Accuracy(task="binary")
+        self.train_precision = torchmetrics.Precision(task="binary")
+        self.train_recall = torchmetrics.Recall(task="binary")
+        self.train_f1 = torchmetrics.F1Score(task="binary")
         
+        self.val_accuracy = torchmetrics.Accuracy(task="binary")
+        self.val_precision = torchmetrics.Precision(task="binary")
+        self.val_recall = torchmetrics.Recall(task="binary")
+        self.val_f1 = torchmetrics.F1Score(task="binary")
+
+        self.best_model_val_loss = float("inf")
+        self.best_model_val_acc = 0.0
+        self.best_model_val_prec = 0.0
+        self.best_model_val_rec = 0.0
+        self.best_model_val_f1 = 0.0
+
         # First convolutional layer
         # Input: 5x10x10, Output: 16x10x10
         # Padding='same' to maintain spatial dimensions
         self.conv1 = nn.Conv2d(
-            in_channels=263,
+            in_channels=4,
             out_channels=16,
             kernel_size=3,
             padding='same'
@@ -38,17 +53,6 @@ class Model(LightningModule):
         
         # Sigmoid activation for probability
         self.sigmoid = nn.Sigmoid()
-
-        # Metrics
-        self.train_accuracy = torchmetrics.Accuracy(task="binary")
-        self.train_precision = torchmetrics.Precision(task="binary")
-        self.train_recall = torchmetrics.Recall(task="binary")
-        self.train_f1 = torchmetrics.F1Score(task="binary")
-
-        self.val_accuracy = torchmetrics.Accuracy(task="binary")
-        self.val_precision = torchmetrics.Precision(task="binary")
-        self.val_recall = torchmetrics.Recall(task="binary")
-        self.val_f1 = torchmetrics.F1Score(task="binary")
     
     def forward(self, x):
         # First conv block
@@ -76,11 +80,11 @@ class Model(LightningModule):
         loss = nn.functional.binary_cross_entropy(y_pred, y)
         acc, prec, rec, f1 = self.compute_metrics(y_pred, y, stage="train")
 
-        self.log("train_loss", loss, prog_bar=True)
-        self.log("train_acc", acc, prog_bar=True)
-        self.log("train_precision", prec)
-        self.log("train_recall", rec)
-        self.log("train_f1", f1)
+        self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("train_acc", acc, on_step=False, on_epoch=True, prog_bar=True)
+        self.log("train_precision", prec, on_step=False, on_epoch=True)
+        self.log("train_recall", rec, on_step=False, on_epoch=True)
+        self.log("train_f1", f1, on_step=False, on_epoch=True)
         return loss
     
     def validation_step(self, batch, batch_idx):
@@ -95,6 +99,25 @@ class Model(LightningModule):
         self.log("val_recall", rec)
         self.log("val_f1", f1)
         return loss
+    
+    def on_validation_epoch_end(self):
+        # Get the aggregated validation loss for the epoch
+        val_loss = self.trainer.callback_metrics["val_loss"]
+        
+        # Update best metrics if the current epoch's loss is better
+        if val_loss < self.best_model_val_loss:
+            self.best_model_val_loss = val_loss
+            self.best_model_val_acc = self.trainer.callback_metrics["val_acc"]
+            self.best_model_val_prec = self.trainer.callback_metrics["val_precision"]
+            self.best_model_val_rec = self.trainer.callback_metrics["val_recall"]
+            self.best_model_val_f1 = self.trainer.callback_metrics["val_f1"]
+            
+            # Log the best metrics
+            self.log("best_model_val_loss", self.best_model_val_loss, prog_bar=True)
+            self.log("best_model_val_acc", self.best_model_val_acc, prog_bar=True)
+            self.log("best_model_val_prec", self.best_model_val_prec, prog_bar=True)
+            self.log("best_model_val_rec", self.best_model_val_rec, prog_bar=True)
+            self.log("best_model_val_f1", self.best_model_val_f1, prog_bar=True)
 
     def configure_optimizers(self):
         optimizer = Adam(self.parameters(), lr=1e-3)
