@@ -7,6 +7,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
 import pandas as pd
+from plot_loss import plot_loss
 
 class BinaryDataset(torch.utils.data.Dataset):
     def __init__(self, input_dir, label_json_path):
@@ -61,9 +62,13 @@ for inputs, target in train_loader:
     print("Training Target Shape:", target.shape)
     break  # Print shape for only the first batch
 
+RUN_NAME = "iter3_binary"
+tensorboard_log_folder = RUN_NAME + "_tensorboard"
+csv_log_folder = RUN_NAME + "_csv"
+
 # Set up logging and checkpointing
-logger = TensorBoardLogger("logs", name="iter3_binary")
-csv_logger = CSVLogger("logs", name="iter3_binary")
+logger = TensorBoardLogger("logs", name=tensorboard_log_folder)
+csv_logger = CSVLogger("logs", name=csv_log_folder)
 checkpoint_callback = ModelCheckpoint(
     monitor="val_loss",  # Metric to monitor
     save_top_k=1,        # Save only the best model
@@ -74,10 +79,12 @@ checkpoint_callback = ModelCheckpoint(
 trainer = Trainer(
     logger=[logger, csv_logger],
     callbacks=[checkpoint_callback],
-    max_epochs=2
+    max_epochs=10
 )
 model = Model()
 trainer.fit(model, train_loader, test_loader)
+
+plot_loss(csv_log_folder)
 
 # Retrieve logged metrics from the trainer
 metrics = trainer.logged_metrics  # Access metrics logged during training
@@ -86,20 +93,6 @@ best_val_loss = trainer.logged_metrics["best_model_val_loss"]
 best_val_acc = trainer.logged_metrics["best_model_val_acc"]
 print(f"Best model validation loss: {best_val_loss}")
 print(f"Best model validation accuracy: {best_val_acc}")
-
-# Extract loss values
-# train_losses = trainer.callback_metrics.get("train_loss").cpu().numpy()
-# val_losses = trainer.callback_metrics.get("val_loss").cpu().numpy()
-
-# Plot the losses
-# plt.plot(train_losses, label="Training Loss")
-# plt.plot(val_losses, label="Validation Loss")
-# plt.xlabel("Epoch")
-# plt.ylabel("Loss")
-# plt.title("Training & Validation Loss Over Time")
-# plt.legend()
-# plt.savefig("plot.png")
-# plt.show()
 
 print("Best model path:", checkpoint_callback.best_model_path)
 print("Best validation loss:", checkpoint_callback.best_model_score)
