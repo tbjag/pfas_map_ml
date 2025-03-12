@@ -79,20 +79,37 @@ checkpoint_callback = ModelCheckpoint(
 trainer = Trainer(
     logger=[logger, csv_logger],
     callbacks=[checkpoint_callback],
-    max_epochs=10
+    max_epochs=3
 )
 model = Model()
 trainer.fit(model, train_loader, test_loader)
 
-plot_loss(csv_log_folder)
+# make matplot lib loss plot
+loss_plot_path = plot_loss(csv_log_folder)
 
 # Retrieve logged metrics from the trainer
 metrics = trainer.logged_metrics  # Access metrics logged during training
 
-best_val_loss = trainer.logged_metrics["best_model_val_loss"]
-best_val_acc = trainer.logged_metrics["best_model_val_acc"]
-print(f"Best model validation loss: {best_val_loss}")
-print(f"Best model validation accuracy: {best_val_acc}")
+# Save the stats for the model with the best validation loss to a text file
+if loss_plot_path:
+    print(loss_plot_path)
+    stats_path = os.path.join(loss_plot_path, "best_model_stats.txt")
+    os.makedirs(os.path.dirname(stats_path), exist_ok=True)
+    best_val_loss = trainer.logged_metrics["best_model_val_loss"]
+    best_val_acc = trainer.logged_metrics["best_model_val_acc"]
+    best_val_rec = trainer.logged_metrics["best_model_val_rec"]
+    best_val_prec = trainer.logged_metrics["best_model_val_prec"]
+    best_val_f1 = trainer.logged_metrics["best_model_val_f1"]
+    print(stats_path)
+    with open(stats_path, "w") as f:
+        f.write(f"Best Model Validation Loss: {best_val_loss}\n")
+        f.write(f"Best Model Validation Accuracy: {best_val_acc}\n")
+        f.write(f"Best Model Validation Recall: {best_val_rec}\n")
+        f.write(f"Best Model Validation Precision: {best_val_prec}\n")
+        f.write(f"Best Model Validation F1 Score: {best_val_f1}\n")
+    print("Matplotlib loss plot and best model stats text file saved to: " + loss_plot_path)
+else:
+    print("Failed plot and store stats")
 
 print("Best model path:", checkpoint_callback.best_model_path)
 print("Best validation loss:", checkpoint_callback.best_model_score)

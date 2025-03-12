@@ -27,7 +27,7 @@ def plot_loss(csv_folder="iter3_binary_csv"):
         val_loss = df["val_loss"].dropna().tolist()
         train_loss = df["train_loss"].dropna().tolist()
 
-        plots_dir = os.path.join(os.path.dirname(__file__), "..", "plots", csv_folder)  # Get 'plots' folder
+        plots_dir = os.path.join(os.path.dirname(__file__), "..", "plots", csv_folder, newest_version)  # Get 'plots' folder
         plots_dir = os.path.abspath(plots_dir) 
         os.makedirs(plots_dir, exist_ok=True)
 
@@ -47,7 +47,10 @@ def plot_loss(csv_folder="iter3_binary_csv"):
         plt.grid(True)
 
         # Save the plot
-        plot_name = newest_version + "_loss_plot.png"
+        plot_name = "loss_plot.png"
         plot_path = os.path.join(plots_dir, plot_name)
         plt.savefig(plot_path)
         plt.close()
+        return plots_dir
+    else:
+        return ""
