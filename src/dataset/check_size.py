@@ -25,7 +25,7 @@ def check_pth_file_sizes(folder_path):
         
         try:
             # Load the .pth file as a tensor dictionary
-            data = torch.load(file_path, map_location=torch.device('cpu'))
+            data = torch.load(file_path, map_location=torch.device('cpu'), weights_only=True)
             
             file_sizes.append(data.shape[0])
         
@@ -39,11 +39,9 @@ def check_pth_file_sizes(folder_path):
         print("All .pth files have the same size.")
     else:
         print("Not all .pth files have the same size:")
-        for file_name, size in file_sizes:
-            print(f"{file_name}: {size} elements")
 
 if __name__ == "__main__":
-    folder_path = '/media/data/iter2/train'
+    folder_path = '/media/data/iter3/train'
     if os.path.isdir(folder_path):
         check_pth_file_sizes(folder_path)
     else:

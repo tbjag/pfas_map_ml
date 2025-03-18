@@ -11,7 +11,7 @@ def queue_files(dir_path):
     file_info  = []
     for root, _, files in os.walk(dir_path):
         for file in files:
-            if file.endswith('.tiff'):
+            if file.endswith('.tif'):
                 full_path = os.path.join(root, file)
                 file_name = os.path.splitext(file)[0]  # Get filename without extension
                 file_info.append((full_path, file_name))
@@ -41,48 +41,31 @@ def get_shp(shp_filepath):
     return california_border
 
 def mask_tiff_with_shapefile(input_tiff, output_tiff, shapefile):
+
     with rasterio.open(input_tiff, 'r') as src:
         out_meta = src.meta.copy()
 
-        out_image, out_transform = mask(
-            src, 
-            shapefile.geometry, 
-            crop=False,
-            nodata=np.nan  # Set outside values to NaN
-        )
-        
-        masked_array = out_image[0]  # Assuming single-band raster
-        
-        valid_mask = ~np.isnan(masked_array)
-        
-        if np.isnan(masked_array[valid_mask]).any():
-            print("NaN values detected within the masked region.")
-            
-            # Calculate the average of valid pixels
-            valid_pixels = masked_array[valid_mask]
-            avg_value = np.nanmean(valid_pixels)
-            
-            print(f"Filling NaN values with average: {avg_value}")
-            
-            # Replace NaN values with the average
-            masked_array[np.isnan(masked_array)] = avg_value
-            
-            # Ensure the filled array is the first band of out_image
-            out_image[0] = masked_array
-        else:
-            print("No NaN values detected within the masked region.")
-        
+        # Perform masking (do NOT pass np.nan in mask function)
+        out_image, out_transform = mask(src, shapefile.geometry, crop=False, nodata=None)
+
+        # Convert masked raster to float and set NaN where original NoData was present
+        out_image = out_image.astype(np.float32)
+        if src.nodata is not None:
+            out_image[out_image == src.nodata] = np.nan  # Replace original nodata with NaN
+
+        # Update metadata
         out_meta.update({
             "driver": "GTiff",
             "height": out_image.shape[1],
             "width": out_image.shape[2],
             "transform": out_transform,
-            "nodata": np.nan
+            "nodata": np.nan  # Set metadata to indicate NaN nodata
         })
-        
+
+        # Write masked raster
         with rasterio.open(output_tiff, 'w', **out_meta) as dest:
             dest.write(out_image)
-    
+
     print(f"Masked TIFF saved to {output_tiff}")
 
 def main():
@@ -93,12 +76,13 @@ def main():
     
     args = parser.parse_args()
     check_paths(args.input_dir, args.shapefile, args.output_dir)
-
+    print(args.input_dir)
     shape = get_shp(args.shapefile)
     
     for input_path, file_name in queue_files(args.input_dir):
-        output_path = os.path.join(args.output_dir, file_name + '.tiff')
+        output_path = os.path.join(args.output_dir, file_name + '.tif')
         mask_tiff_with_shapefile(input_path, output_path, shape)
+
 
 if __name__ == "__main__":
     main()

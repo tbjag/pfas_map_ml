@@ -1,7 +1,9 @@
-import torch
+import os
+import rasterio
 
-if torch.cuda.is_available():
-    print("GPU is available!")
-    print(f"GPU name: {torch.cuda.get_device_name(0)}")
-else:
-    print("GPU is not available. Running on CPU.")
+dir = '/media/data/iter3/temp'
+for filename in os.listdir(dir):
+    filepath = os.path.join(dir, filename)
+    with rasterio.open(filepath) as dataset:
+        print(f'{filename}; w: {dataset.width}; h: {dataset.height}')
+

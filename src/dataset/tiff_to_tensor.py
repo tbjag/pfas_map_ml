@@ -89,8 +89,10 @@ class TIFFProcessor:
         tiff_files = [
             os.path.join(root, file)
             for root, _, files in os.walk(input_directory)
-            for file in files if file.endswith('.tiff')
+            for file in files
         ]
+        print(input_directory)
+        print(tiff_files)
 
         total_cells = 0
         processed_files = []
