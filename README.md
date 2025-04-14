@@ -12,7 +12,7 @@ The data processing pipeline consists of several stages:
     - Convert coordinate system to correct standard.
     - These TIFFs are cropped to align with the ground truth data, ensuring a one-to-one correspondence between the input data and target labels.
 
-2. Processing Existing TIFFs
+2. Processing Existing TIFFs - preprocessing
 
     - Pre-existing TIFF files are resized and cropped to match the target format.
     - Convert coordinate system to correct standard.
@@ -31,7 +31,7 @@ The data processing pipeline consists of several stages:
 This streamlined process ensures that geographical data is correctly formatted and ready for machine learning workflows, facilitating the development of accurate predictive models.
 ## Set Up Environment
 
-- Install python 3.10.14. (we used pyenv to instantiate our virtual environment (insert link)
+- Install python 3.10.14. (we used pyenv to instantiate our virtual environment [pyenv](https://realpython.com/intro-to-pyenv/))
 - run `pip install -r requirements.txt` (there might be issues with the torch version and the specific GPU driver)
 
 ## Processing for csvs
@@ -44,7 +44,19 @@ Rename the target value in the discrete data to 'target' and create a new column
 
 Refer to readme in src/ folder for commands
 
-## WIP below
+## Processing existing rasters (tiffs)
+
+Check out the preprocess folder. There several tools to help check the consistency and other metadata of rasters. In addition, we also want to standardize how null values are handled. These scripts are used before final processing into tensors to ensure consistency. It is also helpful to plot the rasters with matplotlib, please check out the `create_plot.py` and the notebooks in the `notebook_tests` folder.
+
+Refer to readme in src/ folder for commands
+
+## Process raster into tensors
+
+The assumption here is that all rasters are in a standard format in terms of resolution, pixel size, etc. We then take invididual grid cells from the raster and map them to the ground truth. Please read through `tiff_to_tensor.py` for details. 
+
+Refer to readme in src/ folder for command details
+
+## data augment - WIP
 
 ## Notes / Troubleshooting
 
@@ -56,7 +68,7 @@ TBD
     - random resize?
     - random resize crop?
     - random rotate
-    - gaussion blur/noise
+    - gaussian blur/noise
 - config pixel size = think more on this
 - change the way we handle null vals -50 -> 0 -> 1
 - maybe change cell stacking from (x, 1, 10, 10) -> (x, 10, 10)
