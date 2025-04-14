@@ -46,7 +46,7 @@ def mask_tiff_with_shapefile(input_tiff, output_tiff, shapefile):
         out_meta = src.meta.copy()
 
         # Perform masking (do NOT pass np.nan in mask function)
-        out_image, out_transform = mask(src, shapefile.geometry, crop=False, nodata=None)
+        out_image, out_transform = mask(src, shapefile.geometry, crop=True, filled=True)
 
         # Convert masked raster to float and set NaN where original NoData was present
         out_image = out_image.astype(np.float32)
@@ -70,9 +70,9 @@ def mask_tiff_with_shapefile(input_tiff, output_tiff, shapefile):
 
 def main():
     parser = argparse.ArgumentParser(description="Mask a TIFF file using a shapefile and handle NaN values")
-    parser.add_argument('--input_dir', type=str, required=True, help="Input TIFF file path")
-    parser.add_argument('--shapefile', type=str, required=True, help="Shapefile path")
-    parser.add_argument('--output_dir', type=str, required=True, help="Output masked TIFF file path")
+    parser.add_argument('-i', '--input_dir', type=str, required=True, help="Input TIFF file path")
+    parser.add_argument('-s', '--shapefile', type=str, required=True, help="Shapefile path")
+    parser.add_argument('-o', '--output_dir', type=str, required=True, help="Output masked TIFF file path")
     
     args = parser.parse_args()
     check_paths(args.input_dir, args.shapefile, args.output_dir)

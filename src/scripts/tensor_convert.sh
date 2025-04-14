@@ -1,7 +1,7 @@
 # Set the variables
-INPUT_DIR="/media/data/iter3/processed_csv_cat"
-OUTPUT_DIR="/media/data/iter3/train"
-LOCATIONS="/media/data/ground_truth/ground_truth_valid_locations.txt"
+INPUT_DIR="/media/data/iter3/proc_raster/csvs"
+OUTPUT_DIR="/media/data/iter3/train/csvs"
+LOCATIONS="/media/data/ground_truth/grid32.txt"
 GRID_SIZE=32
 
 cd ../dataset
