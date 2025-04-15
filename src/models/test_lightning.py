@@ -10,7 +10,7 @@ class Model(LightningModule):
         # Input: 5x10x10, Output: 16x10x10
         # Padding='same' to maintain spatial dimensions
         self.conv1 = nn.Conv2d(
-            in_channels=4,
+            in_channels=32,
             out_channels=16,
             kernel_size=3,
             padding='same'
@@ -47,6 +47,7 @@ class Model(LightningModule):
         x = self.conv2(x)
         x = self.bn2(x)
         x = self.relu2(x)
+
         
         # Final 1x1 convolution
         x = self.conv3(x)
