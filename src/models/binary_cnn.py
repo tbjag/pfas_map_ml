@@ -26,13 +26,14 @@ class Model(LightningModule):
         # Input: 5x10x10, Output: 16x10x10
         # Padding='same' to maintain spatial dimensions
         self.conv1 = nn.Conv2d(
-            in_channels=4,
+            in_channels=36,
             out_channels=16,
             kernel_size=3,
             padding='same'
         )
         self.bn1 = nn.BatchNorm2d(16)
         self.relu1 = nn.ReLU()
+        self.dropout1 = nn.Dropout(p=0.25) # Remove dropout if needed
         
         # Second convolutional layer
         # Input: 16x10x10, Output: 8x10x10
@@ -44,6 +45,7 @@ class Model(LightningModule):
         )
         self.bn2 = nn.BatchNorm2d(8)
         self.relu2 = nn.ReLU()
+        self.dropout2 = nn.Dropout(p=0.25) # Remove dropout if needed
         
         # Global average pooling to collapse spatial dimensions (32x32 → 1x1)
         self.global_pool = nn.AdaptiveAvgPool2d(1)
@@ -59,11 +61,13 @@ class Model(LightningModule):
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu1(x)
+        x = self.dropout1(x)
         
         # Second conv block
         x = self.conv2(x)
         x = self.bn2(x)
         x = self.relu2(x)
+        x = self.dropout2(x)
 
         # Global pooling and reshape
         x = self.global_pool(x)  # Shape: [batch, 8, 1, 1]

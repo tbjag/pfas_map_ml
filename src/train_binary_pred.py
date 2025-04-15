@@ -8,6 +8,11 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
 import pandas as pd
 from plot_loss import plot_loss
+import numpy as np
+torch.manual_seed(42)
+np.random.seed(42)
+
+from pytorch_lightning.utilities.model_summary import summarize
 
 class BinaryDataset(torch.utils.data.Dataset):
     def __init__(self, input_dir, label_json_path):
@@ -54,7 +59,7 @@ def get_dataloaders(input_dir, label_json_path, batch_size, num_workers=1):
     return train_loader, test_loader
 
 binary_target = os.path.join(os.path.dirname(__file__), "/media/data/iter3/bin_target/", "binary_target.json")
-train_loader, test_loader = get_dataloaders('/media/data/iter3/train', binary_target, 8, 1)
+train_loader, test_loader = get_dataloaders('/media/data/iter3/train/avg_temp+csvs', binary_target, 8, 1)
 
 
 for inputs, target in train_loader:
@@ -62,7 +67,7 @@ for inputs, target in train_loader:
     print("Training Target Shape:", target.shape)
     break  # Print shape for only the first batch
 
-RUN_NAME = "iter3_binary"
+RUN_NAME = "iter3_avg_temp+csvs_binary"
 tensorboard_log_folder = RUN_NAME + "_tensorboard"
 csv_log_folder = RUN_NAME + "_csv"
 
@@ -79,9 +84,14 @@ checkpoint_callback = ModelCheckpoint(
 trainer = Trainer(
     logger=[logger, csv_logger],
     callbacks=[checkpoint_callback],
-    max_epochs=3
+    max_epochs=100
 )
 model = Model()
+
+summary = summarize(model)
+print(summary)
+
+
 trainer.fit(model, train_loader, test_loader)
 
 # make matplot lib loss plot
