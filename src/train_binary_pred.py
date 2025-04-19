@@ -11,7 +11,6 @@ from plot_loss import plot_loss
 import numpy as np
 torch.manual_seed(42)
 np.random.seed(42)
-
 from pytorch_lightning.utilities.model_summary import summarize
 
 class BinaryDataset(torch.utils.data.Dataset):
@@ -84,13 +83,11 @@ checkpoint_callback = ModelCheckpoint(
 trainer = Trainer(
     logger=[logger, csv_logger],
     callbacks=[checkpoint_callback],
-    max_epochs=100
+    max_epochs=1000
 )
 model = Model()
 
 summary = summarize(model)
-print(summary)
-
 
 trainer.fit(model, train_loader, test_loader)
 
