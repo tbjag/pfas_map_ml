@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def plot_loss(csv_folder="iter3_binary_csv"):
+def plot_loss(csv_folder="iter3_binary_csv", plot_name=""):
 
     logs_path = os.path.join(os.path.dirname(__file__), "..", "logs", csv_folder)
     logs_path = os.path.abspath(logs_path)  # Convert to absolute path
@@ -35,21 +35,27 @@ def plot_loss(csv_folder="iter3_binary_csv"):
         val_loss = df["val_loss"].dropna().tolist()
         train_loss = df["train_loss"].dropna().tolist()
 
-        # Plot training & validation loss
+        # Plot training & validation loss with log scale
         plt.figure(figsize=(8, 5))
-        plt.plot(range(1, len(train_loss) + 1), train_loss, label="Train Loss", marker="o")
-        plt.plot(range(1, len(val_loss) + 1), val_loss, label="Validation Loss", marker="s")
-        
+        plt.plot(range(1, len(train_loss) + 1), train_loss, label="Train Loss", linestyle='-', marker='None')
+        plt.plot(range(1, len(val_loss) + 1), val_loss, label="Validation Loss", linestyle='-', marker='None')
+
+        # Add logarithmic scale and improve formatting
+        plt.yscale('log')  # <--- KEY ADDITION
         plt.xlabel("Epochs")
-        plt.ylabel("Loss")
-        plt.title("Training and Validation Loss per Epoch")
+        plt.ylabel("Loss (log scale)")  # Update label
+        plt.title(f"{plot_name}\nTraining and Validation Loss per Epoch")
         plt.legend()
-        plt.grid(True)
+        plt.grid(True, which='both', linestyle='--', linewidth=0.5)  # Show both major/minor grid
+
+        # Optional: Set custom ticks for better readability
+        plt.gca().yaxis.set_major_formatter(plt.ScalarFormatter())
+        plt.gca().yaxis.set_minor_formatter(plt.ScalarFormatter())
 
         # Save the plot
-        plot_name = "loss_plot.png"
+        plot_name = "loss_plot_log.png"  # Different name for log version
         plot_path = os.path.join(plots_dir, plot_name)
-        plt.savefig(plot_path)
+        plt.savefig(plot_path, bbox_inches='tight', dpi=300)
         plt.close()
         return plots_dir
     else:

@@ -4,17 +4,25 @@ from pytorch_lightning.loggers import TensorBoardLogger, CSVLogger
 import dataloader as dt
 from pytorch_lightning.utilities.model_summary import summarize
 from models.test_lightning import Model
+from models.test_lightning2 import Model as Model2
+from models.unet3 import UNet3
+from models.unet2 import UNet2
+from models.unet1 import UNet1
 from plot_loss import plot_loss
 import os
+import numpy as np
+import torch
+torch.manual_seed(42)
+np.random.seed(42)
 
-train_loader, test_loader = dt.get_dataloaders('/media/data/iter3/train/avg_temp+csvs', '/media/data/iter3/img_target', 64, 8)
+train_loader, test_loader = dt.get_dataloaders('/media/data/iter3/train/all_combined', '/media/data/iter3/img_target', 64, 8)
 
 for inputs, target in train_loader:
     print("Training Data Shape:", inputs.shape)
     print("Training Target Shape:", target.shape)
     break  # Print shape for only the first batch
 
-RUN_NAME = "iter3_avg_temp+csvs_img"
+RUN_NAME = "iter3_all_combined_img_unet1"
 tensorboard_log_folder = RUN_NAME + "_tensorboard"
 csv_log_folder = RUN_NAME + "_csv"
 
@@ -31,13 +39,13 @@ checkpoint_callback = ModelCheckpoint(
 trainer = Trainer(
     logger=[logger, csv_logger],
     callbacks=[checkpoint_callback],
-    max_epochs=500
+    max_epochs=2000
 )
-model = Model()
+model = UNet1()
 summary = summarize(model)
 trainer.fit(model, train_loader, test_loader)
 # make matplot lib loss plot
-loss_plot_path = plot_loss(csv_log_folder)
+loss_plot_path = plot_loss(csv_folder=csv_log_folder, plot_name="UNet1 All Combined")
 # Retrieve logged metrics from the trainer
 metrics = trainer.logged_metrics  # Access metrics logged during training
 

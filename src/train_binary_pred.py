@@ -1,4 +1,6 @@
-from models.binary_cnn import Model
+from models.cnn_binary import Model
+from models.cnn2_binary import Model as Model2
+from models.cnn3_binary import Model as Model3
 import torch
 import matplotlib.pyplot as plt
 import json
@@ -12,6 +14,9 @@ import numpy as np
 torch.manual_seed(42)
 np.random.seed(42)
 from pytorch_lightning.utilities.model_summary import summarize
+from models.unet1_binary import UNet1
+from models.unet2_binary import UNet2
+from models.unet3_binary import UNet3
 
 class BinaryDataset(torch.utils.data.Dataset):
     def __init__(self, input_dir, label_json_path):
@@ -30,7 +35,6 @@ class BinaryDataset(torch.utils.data.Dataset):
         file_name = self.input_files[idx]
         input_path = os.path.join(self.input_dir, file_name)
         input_tensor = torch.load(input_path)
-        #print(f"File: {file_name}, Shape: {input_tensor.shape}")
         # Get label from JSON (ensure key matches filename)
         label = self.labels[file_name]
         label_tensor = torch.tensor(label, dtype=torch.float32).view(1)  # BCELoss needs float
@@ -58,7 +62,7 @@ def get_dataloaders(input_dir, label_json_path, batch_size, num_workers=1):
     return train_loader, test_loader
 
 binary_target = os.path.join(os.path.dirname(__file__), "/media/data/iter3/bin_target/", "binary_target.json")
-train_loader, test_loader = get_dataloaders('/media/data/iter3/train/avg_temp+csvs', binary_target, 8, 1)
+train_loader, test_loader = get_dataloaders('/media/data/iter3/train/all_combined', binary_target, 64, 8)
 
 
 for inputs, target in train_loader:
@@ -66,7 +70,7 @@ for inputs, target in train_loader:
     print("Training Target Shape:", target.shape)
     break  # Print shape for only the first batch
 
-RUN_NAME = "iter3_avg_temp+csvs_binary"
+RUN_NAME = "iter3_all_combined_binary_unet1"
 tensorboard_log_folder = RUN_NAME + "_tensorboard"
 csv_log_folder = RUN_NAME + "_csv"
 
@@ -83,16 +87,16 @@ checkpoint_callback = ModelCheckpoint(
 trainer = Trainer(
     logger=[logger, csv_logger],
     callbacks=[checkpoint_callback],
-    max_epochs=1000
+    max_epochs=500
 )
-model = Model()
+model = UNet1()
 
 summary = summarize(model)
 
 trainer.fit(model, train_loader, test_loader)
 
 # make matplot lib loss plot
-loss_plot_path = plot_loss(csv_log_folder)
+loss_plot_path = plot_loss(csv_folder=csv_log_folder, plot_name="unet1 All Combined Logistic")
 
 # Retrieve logged metrics from the trainer
 metrics = trainer.logged_metrics  # Access metrics logged during training

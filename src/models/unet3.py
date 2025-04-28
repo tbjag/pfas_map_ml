@@ -1,4 +1,4 @@
-# Unet2
+# Unet3
 # UNet with 3 encoder and decoder blocks, channel reaches size 256
 # Input channel is downsized to 32
 
@@ -6,10 +6,14 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from models.unet_parts import *
+from pytorch_lightning import LightningModule
+from torch.optim import Adam
 
-class UNet3(nn.Module):
-    def __init__(self, n_channels=263, n_classes=1, dropout_rate=0.25):
+class UNet3(LightningModule):
+    def __init__(self, n_channels=50, n_classes=1, dropout_rate=0.15):
         super(UNet3, self).__init__()
+        self.best_model_val_loss = float("inf")
+
         self.n_channels = n_channels
         self.n_classes = n_classes
 
@@ -41,3 +45,31 @@ class UNet3(nn.Module):
         x = self.dropout(x)
         x = self.outc(x)
         return x
+    
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_pred = self(x)
+        loss = nn.functional.mse_loss(y_pred, y)
+        self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        return loss
+    
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_pred = self(x)
+        loss = nn.functional.mse_loss(y_pred, y)
+        self.log("val_loss", loss, on_epoch=True, prog_bar=True)
+
+    def on_validation_epoch_end(self):
+        # Get the aggregated validation loss for the epoch
+        val_loss = self.trainer.callback_metrics["val_loss"].item()
+        
+        # Update best metrics if the current epoch's loss is better
+        if self.best_model_val_loss < 0 or val_loss < self.best_model_val_loss:
+            self.best_model_val_loss = val_loss
+            
+            # Log the best metrics
+        self.log("best_model_val_loss", self.best_model_val_loss, prog_bar=True)
+
+    def configure_optimizers(self):
+        optimizer = Adam(self.parameters(), lr=1e-3)
+        return optimizer
