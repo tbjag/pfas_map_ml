@@ -1,25 +1,27 @@
 import torch.nn as nn
 from pytorch_lightning import LightningModule
 from torch.optim import Adam
+from torchmetrics import R2Score
+import torch
 
 class ResNetModel(LightningModule):
     def __init__(self):
         super(ResNetModel, self).__init__()
-        self.best_model_val_loss = -1  # Track best validation loss
+        self.r2_score = R2Score()
 
         # Initial convolution block (36 -> 256 channels)
         self.conv1 = nn.Sequential(
-            nn.Conv2d(36, 256, 3, padding='same'),
+            nn.Conv2d(50, 256, 3, padding='same'),
             nn.BatchNorm2d(256),
             nn.ReLU(),
             nn.Dropout(0.2)
         )
 
         # Residual blocks with channel reduction
-        self.res1 = ResidualBlock(256, 128)  # 256 -> 128
-        self.res2 = ResidualBlock(128, 64)    # 128 -> 64
-        self.res3 = ResidualBlock(64, 32)     # 64 -> 32
-        self.res4 = ResidualBlock(32, 16)     # 32 -> 16
+        self.res1 = ResidualBlock(256, 128)
+        self.res2 = ResidualBlock(128, 64)
+        self.res3 = ResidualBlock(64, 32)
+        self.res4 = ResidualBlock(32, 16)
 
         # Final output layer
         self.conv_final = nn.Conv2d(16, 1, 1)
@@ -43,16 +45,27 @@ class ResNetModel(LightningModule):
         x, y = batch
         y_pred = self(x)
         loss = nn.functional.mse_loss(y_pred, y)
-        self.log("val_loss", loss, prog_bar=True)
+        self.r2_score.update(y_pred.flatten(1), y.flatten(1))  # Accumulate R2 across batches
+        
+        # Log validation loss
+        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
     def on_validation_epoch_end(self):
-        val_loss = self.trainer.callback_metrics["val_loss"]
-        if self.best_model_val_loss < 0 or val_loss < self.best_model_val_loss:
-            self.best_model_val_loss = val_loss
-        self.log("best_model_val_loss", self.best_model_val_loss, prog_bar=True)
+        # Compute R2 over all validation batches
+        val_r2 = self.r2_score.compute()
+        self.log("val_r2", val_r2, prog_bar=True)
+        self.r2_score.reset()  # Reset for next epoch
 
     def configure_optimizers(self):
-        return Adam(self.parameters(), lr=1e-3)
+        optimizer = Adam(self.parameters(), lr=1e-4)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "monitor": "val_loss",
+            },
+        }
 
 class ResidualBlock(nn.Module):
     """ResNet-style residual block with channel reduction"""

@@ -1,14 +1,21 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-import torch.nn.functional as F
-import torchmetrics
+from models.UNets.unet_parts import *
 from pytorch_lightning import LightningModule
 from torch.optim import Adam
+import torchmetrics
 
-class Model(LightningModule):
-    def __init__(self):
-        super(Model, self).__init__()
+class UNet3(LightningModule):
+    def __init__(self, n_channels=54, n_classes=1, dropout_rate=0.15):
+        super(UNet3, self).__init__()
+        self.best_model_val_loss = float("inf")
+        self.best_model_val_acc = 0.0
+        self.best_model_val_prec = 0.0
+        self.best_model_val_rec = 0.0
+        self.best_model_val_f1 = 0.0
+
+        # Initialize metrics
         self.train_accuracy = torchmetrics.Accuracy(task="binary")
         self.train_precision = torchmetrics.Precision(task="binary")
         self.train_recall = torchmetrics.Recall(task="binary")
@@ -19,101 +26,71 @@ class Model(LightningModule):
         self.val_recall = torchmetrics.Recall(task="binary")
         self.val_f1 = torchmetrics.F1Score(task="binary")
 
-        self.best_model_val_loss = float("inf")
-        self.best_model_val_acc = 0.0
-        self.best_model_val_prec = 0.0
-        self.best_model_val_rec = 0.0
-        self.best_model_val_f1 = 0.0
+        self.n_channels = n_channels
+        self.n_classes = n_classes
 
-        # Convolutional layers
-        self.conv1 = nn.Conv2d(50, 256, kernel_size=3, padding='same')
-        self.bn1 = nn.BatchNorm2d(256)
-        self.relu1 = nn.ReLU()
-        self.dropout1 = nn.Dropout(p=0.2)
+        self.dropout = nn.Dropout(dropout_rate)
 
-        self.conv2 = nn.Conv2d(256, 128, kernel_size=3, padding='same')
-        self.bn2 = nn.BatchNorm2d(128)
-        self.relu2 = nn.ReLU()
-        self.dropout2 = nn.Dropout(p=0.2)
+        self.inc = (DoubleConv(n_channels, 32))
+        self.down1 = (Down(32, 64))
+        self.down2 = (Down(64, 128))
+        self.down3 = (Down(128, 256))
+        self.up1 = (Up(256, 128))
+        self.up2 = (Up(128, 64))
+        self.up3 = (Up(64, 32))
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
+        self.fc = nn.Linear(32, n_classes)
 
-        self.conv3 = nn.Conv2d(128, 64, kernel_size=3, padding='same')
-        self.bn3 = nn.BatchNorm2d(64)
-        self.relu3 = nn.ReLU()
-        self.dropout3 = nn.Dropout(p=0.2)
-
-        self.conv4 = nn.Conv2d(64, 32, kernel_size=3, padding='same')
-        self.bn4 = nn.BatchNorm2d(32)
-        self.relu4 = nn.ReLU()
-        self.dropout4 = nn.Dropout(p=0.2)
-
-        self.conv5 = nn.Conv2d(32, 16, kernel_size=3, padding='same')
-        self.bn5 = nn.BatchNorm2d(16)
-        self.relu5 = nn.ReLU()
-        self.dropout5 = nn.Dropout(p=0.2)
-
-        self.conv6 = nn.Conv2d(16, 8, kernel_size=3, padding='same')
-        self.bn6 = nn.BatchNorm2d(8)
-        self.relu6 = nn.ReLU()
-        self.dropout6 = nn.Dropout(p=0.2)
-
-        # Global average pooling
-        self.global_pool = nn.AdaptiveAvgPool2d(1)
-        
-        # Fully connected layer for binary classification
-        self.fc = nn.Linear(8, 1)
-        self.sigmoid = nn.Sigmoid()
-    
     def forward(self, x):
-        x = self.dropout1(self.relu1(self.bn1(self.conv1(x))))
-        x = self.dropout2(self.relu2(self.bn2(self.conv2(x))))
-        x = self.dropout3(self.relu3(self.bn3(self.conv3(x))))
-        x = self.dropout4(self.relu4(self.bn4(self.conv4(x))))
-        x = self.dropout5(self.relu5(self.bn5(self.conv5(x))))
-        x = self.dropout6(self.relu6(self.bn6(self.conv6(x))))
+        x1 = self.inc(x)
+        x1 = self.dropout(x1)
+        x2 = self.down1(x1)
+        x2 = self.dropout(x2)
+        x3 = self.down2(x2)
+        x3 = self.dropout(x3)
+        x4 = self.down3(x3)
+        x4 = self.dropout(x4)
+        x = self.up1(x4, x3)
+        x = self.dropout(x)
+        x = self.up2(x, x2)
+        x = self.dropout(x)
+        x = self.up3(x, x1)
+        x = self.dropout(x)
 
-        x = self.global_pool(x)
+        x = self.avgpool(x)
         x = x.view(x.size(0), -1)
         x = self.fc(x)
-        x = self.sigmoid(x)
-        return x
-
-    def conv_block(in_channels, out_channels, dropout_rate=0.2):
-        return nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, kernel_size=3, padding='same'),
-            nn.BatchNorm2d(out_channels),
-            nn.ReLU(),
-            nn.Dropout(p=dropout_rate)
-        )
-
+        return torch.sigmoid(x)
+    
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_pred = self(x)
         loss = nn.functional.binary_cross_entropy(y_pred, y)
-        acc, prec, rec, f1 = self.compute_metrics(y_pred, y, stage="train")
 
+        acc, prec, rec, f1 = self.compute_metrics(y_pred, y, stage="train")
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
         self.log("train_acc", acc, on_step=False, on_epoch=True, prog_bar=True)
         self.log("train_precision", prec, on_step=False, on_epoch=True)
         self.log("train_recall", rec, on_step=False, on_epoch=True)
         self.log("train_f1", f1, on_step=False, on_epoch=True)
         return loss
-
+    
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_pred = self(x)
         loss = nn.functional.binary_cross_entropy(y_pred, y)
-        
+
         acc, prec, rec, f1 = self.compute_metrics(y_pred, y, stage="val")
         self.log("val_loss", loss, prog_bar=True)
         self.log("val_acc", acc)
         self.log("val_precision", prec)
         self.log("val_recall", rec)
         self.log("val_f1", f1)
-        return loss
 
     def on_validation_epoch_end(self):
-        val_loss = self.trainer.callback_metrics["val_loss"]
-        if val_loss < self.best_model_val_loss:
+        val_loss = self.trainer.callback_metrics["val_loss"].item()
+        
+        if self.best_model_val_loss < 0 or val_loss < self.best_model_val_loss:
             self.best_model_val_loss = val_loss
             self.best_model_val_acc = self.trainer.callback_metrics["val_acc"]
             self.best_model_val_prec = self.trainer.callback_metrics["val_precision"]
@@ -127,8 +104,9 @@ class Model(LightningModule):
         self.log("best_model_val_f1", self.best_model_val_f1, prog_bar=True)
 
     def configure_optimizers(self):
-        return Adam(self.parameters(), lr=1e-3)
-
+        optimizer = Adam(self.parameters(), lr=1e-3)
+        return optimizer
+    
     def compute_metrics(self, y_pred, y_true, stage="train"):
         y_pred_class = (y_pred > 0.5).float()
         if stage == "train":

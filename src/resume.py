@@ -1,5 +1,5 @@
 import dataloader as dt
-from models.test_cnn import Model
+from models.CNNs.test_cnn import Model
 
 import torch
 import torch.nn as nn
@@ -7,10 +7,10 @@ import torch.optim as optim
 import torch.nn.functional as F
 from tqdm import tqdm
 import matplotlib.pyplot as plt
-from models.unet1 import UNet
-from models.unet2 import UNet2  
-from models.unet3 import UNet3
-import models.test_cnn as test_cnn
+from models.UNets.unet1 import UNet
+from models.UNets.unet2 import UNet2  
+from models.UNets.unet3 import UNet3
+import models.CNNs.test_cnn as test_cnn
 
 from train import train_one_epoch, evaluate
 
