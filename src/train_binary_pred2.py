@@ -58,7 +58,7 @@ def get_dataloaders(input_dir, label_json_path, batch_size, num_workers=1):
     return train_loader, test_loader
 
 binary_target = os.path.join(os.path.dirname(__file__), "/media/data/iter3/bin_target/", "binary_target.json")
-train_loader, test_loader = get_dataloaders('/media/data/iter3/train/v1/avg_temp+csvs', binary_target, 8, 1)
+train_loader, test_loader = get_dataloaders('/media/data/iter3/train/v4/all_10km', binary_target, 8, 1)
 
 
 for inputs, target in train_loader:
@@ -110,7 +110,7 @@ def evaluate(model, loader, criterion, device):
 # Training loop
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
-num_epochs = 10  # Set the number of epochs
+num_epochs = 50  # Set the number of epochs
 train_losses = []
 test_losses = []
 
@@ -152,7 +152,7 @@ plt.title('Training and Test Loss Over Epochs')
 plt.legend()
 
 # Save the figure
-plt.savefig('loss_plot_iter3_bce.png', dpi=300)
+plt.savefig('loss_plot_iter3_cnn2_bce.png', dpi=300)
 
 print("Training complete.")
-print(f'Min Test Loss: {min_test_loss:.2f}')
+print(f'Min Test Loss: {min_test_loss:.4f}')

@@ -1,40 +1,59 @@
+import torch
 import torch.nn as nn
+from models.UNets.unet_parts import *
 from pytorch_lightning import LightningModule
 from torch.optim import Adam
 from torchmetrics import R2Score
 from torchmetrics import MeanAbsoluteError as MAE
-import torch
 
-class ResNetModel(LightningModule):
-    def __init__(self):
-        super(ResNetModel, self).__init__()
+class UNet1(LightningModule):
+    def __init__(self, n_channels=52, n_classes=3, dropout_rate=0.2):
+        super(UNet1, self).__init__()
         self.r2_score = R2Score()
         self.mae = MAE()
+        
+        self.n_channels = n_channels
+        self.n_classes = n_classes
 
-        # Initial convolution block (36 -> 256 channels)
-        self.conv1 = nn.Sequential(
-            nn.Conv2d(50, 256, 3, padding='same'),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
-            nn.Dropout(0.2)
-        )
+        self.dropout = nn.Dropout(dropout_rate)
 
-        # Residual blocks with channel reduction
-        self.res1 = ResidualBlock(256, 128)
-        self.res2 = ResidualBlock(128, 64)
-        self.res3 = ResidualBlock(64, 32)
-        self.res4 = ResidualBlock(32, 16)
+        # Encoder (contracting path)
+        self.inc = DoubleConv(n_channels, 64)
+        self.down1 = Down(64, 128)
+        self.down2 = Down(128, 256)
+        self.down3 = Down(256, 512)
+        self.down4 = Down(512, 1024)  # Keeping the extra down layer from original UNet1
 
-        # Final output layer
-        self.conv_final = nn.Conv2d(16, 1, 1)
+        # Decoder (expanding path)
+        self.up1 = Up(1024, 512)
+        self.up2 = Up(512, 256)
+        self.up3 = Up(256, 128)
+        self.up4 = Up(128, 64)
+        self.outc = OutConv(64, n_classes)
 
     def forward(self, x):
-        x = self.conv1(x)
-        x = self.res1(x)
-        x = self.res2(x)
-        x = self.res3(x)
-        x = self.res4(x)
-        return self.conv_final(x)
+        # Forward pass with dropout
+        x1 = self.inc(x)
+        x1 = self.dropout(x1)
+        x2 = self.down1(x1)
+        x2 = self.dropout(x2)
+        x3 = self.down2(x2)
+        x3 = self.dropout(x3)
+        x4 = self.down3(x3)
+        x4 = self.dropout(x4)
+        x5 = self.down4(x4)
+        x5 = self.dropout(x5)
+        
+        x = self.up1(x5, x4)
+        x = self.dropout(x)
+        x = self.up2(x, x3)
+        x = self.dropout(x)
+        x = self.up3(x, x2)
+        x = self.dropout(x)
+        x = self.up4(x, x1)
+        x = self.dropout(x)
+        
+        return self.outc(x)
 
     def training_step(self, batch, batch_idx):
         x, y = batch
@@ -78,28 +97,3 @@ class ResNetModel(LightningModule):
         return {
             "optimizer": optimizer
         }
-
-class ResidualBlock(nn.Module):
-    """ResNet-style residual block with channel reduction"""
-    def __init__(self, in_channels, out_channels):
-        super().__init__()
-        self.conv1 = nn.Conv2d(in_channels, out_channels, 3, padding='same')
-        self.bn1 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(out_channels, out_channels, 3, padding='same')
-        self.bn2 = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU()
-        
-        # Shortcut connection for channel mismatch
-        self.shortcut = nn.Sequential()
-        if in_channels != out_channels:
-            self.shortcut = nn.Sequential(
-                nn.Conv2d(in_channels, out_channels, 1, padding='same'),
-                nn.BatchNorm2d(out_channels)
-            )
-
-    def forward(self, x):
-        residual = self.shortcut(x)
-        x = self.relu(self.bn1(self.conv1(x)))
-        x = self.bn2(self.conv2(x))
-        x += residual
-        return self.relu(x)

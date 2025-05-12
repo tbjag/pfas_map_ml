@@ -16,7 +16,7 @@ class Model(LightningModule):
         self.val_f1 = torchmetrics.F1Score(task="binary")
 
         # Individual conv layers
-        self.conv1 = self.conv_block(in_channels=36, out_channels=256)
+        self.conv1 = self.conv_block(in_channels=52, out_channels=256)
         self.conv2 = self.conv_block(in_channels=256, out_channels=128)
         self.conv3 = self.conv_block(in_channels=128, out_channels=64)
         self.conv4 = self.conv_block(in_channels=64, out_channels=32)
@@ -79,12 +79,15 @@ class Model(LightningModule):
         self.val_f1.reset()
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters(), lr=1e-4)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
+        optimizer = Adam(self.parameters())
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
+        # return {
+        #     "optimizer": optimizer,
+        #     "lr_scheduler": {
+        #         "scheduler": scheduler,
+        #         "monitor": "val_loss",
+        #     },
+        # }
         return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": scheduler,
-                "monitor": "val_loss",
-            },
+            "optimizer": optimizer
         }

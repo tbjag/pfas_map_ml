@@ -10,23 +10,11 @@ from torch.optim import Adam
 import torchmetrics
 
 class UNet1(LightningModule):
-    def __init__(self, n_channels=54, n_classes=1, dropout_rate=0.1):
+    def __init__(self, n_channels=52, n_classes=1, dropout_rate=0.2):
         super(UNet1, self).__init__()
-        self.best_model_val_loss = float("inf")
-        self.best_model_val_acc = 0.0
-        self.best_model_val_prec = 0.0
-        self.best_model_val_rec = 0.0
-        self.best_model_val_f1 = 0.0
-
-        # Initialize metrics
-        self.train_accuracy = torchmetrics.Accuracy(task="binary")
-        self.train_precision = torchmetrics.Precision(task="binary")
-        self.train_recall = torchmetrics.Recall(task="binary")
-        self.train_f1 = torchmetrics.F1Score(task="binary")
-        
-        self.val_accuracy = torchmetrics.Accuracy(task="binary")
-        self.val_precision = torchmetrics.Precision(task="binary")
-        self.val_recall = torchmetrics.Recall(task="binary")
+        self.val_acc = torchmetrics.Accuracy(task="binary")
+        self.val_prec = torchmetrics.Precision(task="binary")
+        self.val_rec = torchmetrics.Recall(task="binary")
         self.val_f1 = torchmetrics.F1Score(task="binary")
         
         self.n_channels = n_channels
@@ -39,7 +27,7 @@ class UNet1(LightningModule):
         self.down1 = Down(64, 128)
         self.down2 = Down(128, 256)
         self.down3 = Down(256, 512)
-        self.down4 = Down(512, 1024)  # Keeping the extra down layer from original UNet1
+        self.down4 = Down(512, 1024)
 
         # Decoder (expanding path)
         self.up1 = Up(1024, 512)
@@ -80,61 +68,49 @@ class UNet1(LightningModule):
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_pred = self(x)
-        loss = nn.functional.binary_cross_entropy(y_pred, y)
-
-        acc, prec, rec, f1 = self.compute_metrics(y_pred, y, stage="train")
+        loss = F.binary_cross_entropy(y_pred, y.float())
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("train_acc", acc, on_step=False, on_epoch=True, prog_bar=True)
-        self.log("train_precision", prec, on_step=False, on_epoch=True)
-        self.log("train_recall", rec, on_step=False, on_epoch=True)
-        self.log("train_f1", f1, on_step=False, on_epoch=True)
         return loss
-    
+
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_pred = self(x)
-        loss = nn.functional.binary_cross_entropy(y_pred, y)
+        loss = F.binary_cross_entropy(y_pred, y.float())
         
-        acc, prec, rec, f1 = self.compute_metrics(y_pred, y, stage="val")
-        self.log("val_loss", loss, prog_bar=True)
-        self.log("val_acc", acc)
-        self.log("val_precision", prec)
-        self.log("val_recall", rec)
-        self.log("val_f1", f1)
+        # Update metrics
+        self.val_acc(y_pred, y)
+        self.val_prec(y_pred, y)
+        self.val_rec(y_pred, y)
+        self.val_f1(y_pred, y)
+        
+        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
 
     def on_validation_epoch_end(self):
-        val_loss = self.trainer.callback_metrics["val_loss"].item()
+        # Log validation metrics
+        self.log("val_acc", self.val_acc.compute(), prog_bar=True)
+        self.log("val_prec", self.val_prec.compute())
+        self.log("val_rec", self.val_rec.compute())
+        self.log("val_f1", self.val_f1.compute())
         
-        if self.best_model_val_loss < 0 or val_loss < self.best_model_val_loss:
-            self.best_model_val_loss = val_loss
-            self.best_model_val_acc = self.trainer.callback_metrics["val_acc"]
-            self.best_model_val_prec = self.trainer.callback_metrics["val_precision"]
-            self.best_model_val_rec = self.trainer.callback_metrics["val_recall"]
-            self.best_model_val_f1 = self.trainer.callback_metrics["val_f1"]
-        
-        self.log("best_model_val_loss", self.best_model_val_loss, prog_bar=True)
-        self.log("best_model_val_acc", self.best_model_val_acc, prog_bar=True)
-        self.log("best_model_val_prec", self.best_model_val_prec, prog_bar=True)
-        self.log("best_model_val_rec", self.best_model_val_rec, prog_bar=True)
-        self.log("best_model_val_f1", self.best_model_val_f1, prog_bar=True)
+        # Reset metrics
+        self.val_acc.reset()
+        self.val_prec.reset()
+        self.val_rec.reset()
+        self.val_f1.reset()
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters(), lr=1e-4)
-        return optimizer
-    
-    def compute_metrics(self, y_pred, y_true, stage="train"):
-        y_pred_class = (y_pred > 0.5).float()
-        if stage == "train":
-            acc = self.train_accuracy(y_pred_class, y_true)
-            prec = self.train_precision(y_pred_class, y_true)
-            rec = self.train_recall(y_pred_class, y_true)
-            f1 = self.train_f1(y_pred_class, y_true)
-        else:
-            acc = self.val_accuracy(y_pred_class, y_true)
-            prec = self.val_precision(y_pred_class, y_true)
-            rec = self.val_recall(y_pred_class, y_true)
-            f1 = self.val_f1(y_pred_class, y_true)
-        return acc, prec, rec, f1
+        optimizer = Adam(self.parameters())
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
+        # return {
+        #     "optimizer": optimizer,
+        #     "lr_scheduler": {
+        #         "scheduler": scheduler,
+        #         "monitor": "val_loss",
+        #     },
+        # }
+        return {
+            "optimizer": optimizer
+        }
     
 
 

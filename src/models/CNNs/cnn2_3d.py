@@ -39,7 +39,9 @@ class Model(LightningModule):
         x, y = batch
         y_pred = self(x)
         loss = nn.functional.mse_loss(y_pred, y)
+        #loss = nn.MSELoss(y_pred, y)
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        #self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -51,6 +53,7 @@ class Model(LightningModule):
         
         # Log validation loss
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        #self.log("val_loss", loss, prog_bar=True)
 
     def on_validation_epoch_end(self):
         # Compute R2 over all validation batches
@@ -62,12 +65,15 @@ class Model(LightningModule):
         self.mae.reset()
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters(), lr=1e-4)
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
+        optimizer = Adam(self.parameters())
+        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
+        # return {
+        #     "optimizer": optimizer,
+        #     "lr_scheduler": {
+        #         "scheduler": scheduler,
+        #         "monitor": "val_loss",
+        #     },
+        # }
         return {
-            "optimizer": optimizer,
-            "lr_scheduler": {
-                "scheduler": scheduler,
-                "monitor": "val_loss",
-            },
+            "optimizer": optimizer
         }

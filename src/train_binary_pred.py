@@ -18,28 +18,33 @@ from pytorch_lightning.utilities.model_summary import summarize
 from models.UNets.unet1_binary import UNet1
 from models.UNets.unet2_binary import UNet2
 from models.UNets.unet3_binary import UNet3
+import time
 
 def get_best_classification_metrics(csv_folder):
-    """Returns dict of best validation metrics (loss, acc, prec, rec, f1)"""
+    """Returns dict of best classification metrics (loss, acc, prec, rec, f1) and epoch"""
     logs_path = os.path.join(os.path.dirname(__file__), "..", "logs", csv_folder)
     logs_path = os.path.abspath(logs_path)
 
     version_folders = [f for f in os.listdir(logs_path) if f.startswith("version_")]
     if not version_folders:
-        return None  # or raise error
+        return {'val_acc': -1, 'val_prec': -1, 'val_rec': -1, 'val_f1': -1, 'best_epoch': -1}
 
     newest_version = max(version_folders, key=lambda f: os.path.getmtime(os.path.join(logs_path, f)))
     csv_path = os.path.join(logs_path, newest_version, "metrics.csv")
     metrics_df = pd.read_csv(csv_path)
 
-    # Get row with best validation loss (or any other metric you monitor)
-    best_epoch_row = metrics_df.loc[metrics_df["val_loss"].idxmin()]
+    # Filter validation entries and find best epoch
+    val_metrics = metrics_df.dropna(subset=['val_loss']).groupby('epoch').last()
+    if val_metrics.empty:
+        return {'val_acc': -1, 'val_prec': -1, 'val_rec': -1, 'val_f1': -1, 'best_epoch': -1}
 
+    best_row = val_metrics.loc[val_metrics['val_loss'].idxmin()]
     return {
-        "val_acc": best_epoch_row["val_acc"],
-        "val_prec": best_epoch_row["val_prec"],
-        "val_rec": best_epoch_row["val_rec"],
-        "val_f1": best_epoch_row["val_f1"]
+        'val_acc': best_row.get('val_acc', -1),
+        'val_prec': best_row.get('val_prec', -1),
+        'val_rec': best_row.get('val_rec', -1),
+        'val_f1': best_row.get('val_f1', -1),
+        'best_epoch': best_row.name
     }
 
 class BinaryDataset(torch.utils.data.Dataset):
@@ -86,7 +91,7 @@ def get_dataloaders(input_dir, label_json_path, batch_size, num_workers=1):
     return train_loader, test_loader
 
 binary_target = os.path.join(os.path.dirname(__file__), "/media/data/iter3/bin_target/", "binary_target.json")
-train_loader, test_loader = get_dataloaders('/media/data/iter3/train/v1/avg_temp+csvs', binary_target, 64, 8)
+train_loader, test_loader = get_dataloaders('/media/data/iter3/train/v4/all_10km', binary_target, 64, 8)
 
 
 for inputs, target in train_loader:
@@ -94,7 +99,7 @@ for inputs, target in train_loader:
     print("Training Target Shape:", target.shape)
     break  # Print shape for only the first batch
 
-RUN_NAME = "iter3_avg_temp+csvs_binary_2"
+RUN_NAME = "iter3_all_10km_binary_2"
 tensorboard_log_folder = RUN_NAME + "_tensorboard"
 csv_log_folder = RUN_NAME + "_csv"
 
@@ -111,15 +116,21 @@ checkpoint_callback = ModelCheckpoint(
 trainer = Trainer(
     logger=[logger, csv_logger],
     callbacks=[checkpoint_callback],
-    max_epochs=10
+    max_epochs=70
 )
 model = Model2()
 
 summary = summarize(model)
-
+training_start_time = time.time()
 trainer.fit(model, train_loader, test_loader)
 
-loss_plot_path = plot_loss(csv_folder=csv_log_folder, plot_name="CNN2 avg_temp+csvs Logistic")
+training_duration = time.time() - training_start_time
+hours = int(training_duration // 3600)
+minutes = int((training_duration % 3600) // 60)
+seconds = int(training_duration % 60)
+training_time_str = f"{hours}h {minutes}m {seconds}s"
+
+loss_plot_path = plot_loss(csv_folder=csv_log_folder, plot_name="CNN2 All 10km Logistic")
 
 metrics = get_best_classification_metrics(csv_log_folder)
 
@@ -129,6 +140,7 @@ best_val_acc = metrics["val_acc"]
 best_val_rec = metrics["val_rec"]
 best_val_prec = metrics["val_prec"]
 best_val_f1 = metrics["val_f1"]
+best_epoch = metrics["best_epoch"]
 if loss_plot_path:
     print(loss_plot_path)
     stats_path = os.path.join(loss_plot_path, "best_model_stats.txt")
@@ -141,6 +153,10 @@ if loss_plot_path:
         f.write(f"Best Model Validation Recall: {best_val_rec}\n")
         f.write(f"Best Model Validation Precision: {best_val_prec}\n")
         f.write(f"Best Model Validation F1 Score: {best_val_f1}\n")
+        f.write(f"Training Duration: {training_time_str}\n")
+        f.write(f"Total Epochs: {trainer.current_epoch}\n")
+        f.write(f"Min Loss at Epoch: {best_epoch}\n")
+        f.write(f"Best Model Path: {checkpoint_callback.best_model_path}\n")
     print("Matplotlib loss plot and best model stats text file saved to: " + loss_plot_path)
 else:
     print("Failed plot and store stats")

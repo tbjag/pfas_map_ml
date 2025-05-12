@@ -46,7 +46,7 @@ def get_metrics_for_best_checkpoint(csv_folder):
     # Return defaults if no data found
     return {'best_r2': -1, 'best_mae': -1, 'best_epoch': -1}
 
-train_loader, test_loader = dt.get_dataloaders('/media/data/iter3/train/v4/all_10km', '/media/data/iter3/img_target/v1', 64, 8)
+train_loader, test_loader = dt.get_dataloaders('/media/data/iter3/train/v4/all_10km', '/media/data/iter3/img_target/v3_scaled', 64, 8)
 
 for inputs, target in train_loader:
     print("Training Data Shape:", inputs.shape)
@@ -57,7 +57,7 @@ targets = torch.cat([y for _, y in train_loader], dim=0)
 print(f"Target range: [{targets.min()}, {targets.max()}]")
 print(f"Target mean/std: {targets.mean():.4f}, {targets.std():.4f}")
 
-RUN_NAME = "iter3_all_10km_img_cnn2"
+RUN_NAME = "iter3_all_10km_3d_scaled_cnn2"
 tensorboard_log_folder = RUN_NAME + "_tensorboard"
 csv_log_folder = RUN_NAME + "_csv"
 
@@ -70,13 +70,13 @@ checkpoint_callback = ModelCheckpoint(
     mode="min"           # Minimize the monitored metric (e.g., val_loss)
 )
 
-# Train the model
+# Train the model 
 trainer = Trainer(
     logger=[logger, csv_logger],
     callbacks=[checkpoint_callback],
-    max_epochs=35
+    max_epochs=400
 )
-model = Model2()
+model = Model2_3D()
 summary = summarize(model)
 
 training_start_time = time.time()
@@ -89,7 +89,7 @@ minutes = int((training_duration % 3600) // 60)
 seconds = int(training_duration % 60)
 training_time_str = f"{hours}h {minutes}m {seconds}s"
 
-loss_plot_path = plot_loss(csv_folder=csv_log_folder, plot_name="CNN2 All 10km")
+loss_plot_path = plot_loss(csv_folder=csv_log_folder, plot_name="CNN2 All 10km 3 Dim")
 metrics = get_metrics_for_best_checkpoint(csv_log_folder)
 
 # Save the stats for the model with the best validation loss to a text file
@@ -103,7 +103,7 @@ if loss_plot_path:
         f.write(f"Best Model Validation R2: {metrics['best_r2']:.4f}\n")
         f.write(f"Best Model Validation MAE: {metrics['best_mae']:.4f}\n")
         f.write(f"Training Duration: {training_time_str}\n")
-        f.write(f"Total Epochs: {trainer.current_epoch+1}\n")
+        f.write(f"Total Epochs: {trainer.current_epoch}\n")
         f.write(f"Min Loss at Epoch: {metrics['best_epoch']}\n")
         f.write(f"Best Model Path: {checkpoint_callback.best_model_path}\n")
     print("Matplotlib loss plot and best model stats text file saved to: " + loss_plot_path)

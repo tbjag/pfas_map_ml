@@ -25,7 +25,7 @@ def plot_loss(csv_folder="iter3_binary_csv", plot_name=""):
         val_loss = df["val_loss"].dropna().tolist()
         train_loss = df["train_loss"].dropna().tolist()
 
-        plots_dir = os.path.join(os.path.dirname(__file__), "..", "plots", csv_folder, newest_version)
+        plots_dir = os.path.join(os.path.dirname(__file__), "..", "plots/results", csv_folder, newest_version)
         plots_dir = os.path.abspath(plots_dir) 
         os.makedirs(plots_dir, exist_ok=True)
 
@@ -42,7 +42,7 @@ def plot_loss(csv_folder="iter3_binary_csv", plot_name=""):
 
             plt.scatter(min_epoch, min_val, color='red', zorder=5)
             plt.annotate(
-                f'\nMin: {min_val:.3f}',
+                f'\nMin: {min_val:.4f}',
                 xy=(min_epoch, min_val),
                 xytext=(min_epoch + 0.5, min_val),
                 ha='left',
