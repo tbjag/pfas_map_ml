@@ -41,7 +41,6 @@ class Model(LightningModule):
         loss = nn.functional.mse_loss(y_pred, y)
         #loss = nn.MSELoss(y_pred, y)
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        #self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -53,7 +52,7 @@ class Model(LightningModule):
         
         # Log validation loss
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        #self.log("val_loss", loss, prog_bar=True)
+        return loss
 
     def on_validation_epoch_end(self):
         # Compute R2 over all validation batches

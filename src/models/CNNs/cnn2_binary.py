@@ -64,6 +64,7 @@ class Model(LightningModule):
         self.val_f1(y_pred, y)
         
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        return loss
 
     def on_validation_epoch_end(self):
         # Log validation metrics

@@ -1,0 +1,7 @@
+Best Model Validation Loss: 419899.96875
+Best Model Validation R2: 0.8843
+Best Model Validation MAE: 118.5849
+Training Duration: 2h 55m 55s
+Total Epochs: 450
+Min Loss at Epoch: 361
+Best Model Path: logs/iter3_all_1km_pfas_resnet2_tensorboard/version_0/checkpoints/epoch=361-step=146610.ckpt

@@ -11,6 +11,10 @@ class Model(LightningModule):
         self.r2_score = R2Score()
         self.mae = MAE()
 
+        # New metrics for testing
+        self.test_r2 = R2Score()
+        self.test_mae = MAE()
+
         self.conv1 = self.conv_block(in_channels=52, out_channels=256)
         self.conv2 = self.conv_block(in_channels=256, out_channels=128)
         self.conv3 = self.conv_block(in_channels=128, out_channels=64)
@@ -27,7 +31,7 @@ class Model(LightningModule):
         x = self.conv6(x)
         return x
 
-    def conv_block(self, in_channels, out_channels, dropout_rate=0.2):
+    def conv_block(self, in_channels, out_channels, dropout_rate=0.3):
         return nn.Sequential(
             nn.Conv2d(in_channels, out_channels, kernel_size=3, padding='same'),
             nn.BatchNorm2d(out_channels),
@@ -41,7 +45,6 @@ class Model(LightningModule):
         loss = nn.functional.mse_loss(y_pred, y)
         #loss = nn.MSELoss(y_pred, y)
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        #self.log("train_loss", loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -53,7 +56,7 @@ class Model(LightningModule):
         
         # Log validation loss
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        #self.log("val_loss", loss, prog_bar=True)
+        return loss
 
     def on_validation_epoch_end(self):
         # Compute R2 over all validation batches
@@ -64,16 +67,26 @@ class Model(LightningModule):
         self.r2_score.reset()  # Reset for next epoch
         self.mae.reset()
 
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_pred = self(x)
+        loss = nn.functional.mse_loss(y_pred, y)
+        self.test_r2.update(y_pred.flatten(1), y.flatten(1))
+        self.test_mae.update(y_pred, y)
+        self.log("test_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        return loss
+
+    def on_test_epoch_end(self):
+        test_r2 = self.test_r2.compute()
+        test_mae = self.test_mae.compute()
+        self.log("test_r2", test_r2, prog_bar=True)
+        self.log("test_mae", test_mae, prog_bar=True)
+        self.test_r2.reset()
+        self.test_mae.reset()
+
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters())
-        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
-        # return {
-        #     "optimizer": optimizer,
-        #     "lr_scheduler": {
-        #         "scheduler": scheduler,
-        #         "monitor": "val_loss",
-        #     },
-        # }
+        optimizer = Adam(self.parameters(),weight_decay=1e-5)
+
         return {
             "optimizer": optimizer
         }

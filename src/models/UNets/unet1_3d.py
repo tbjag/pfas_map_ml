@@ -73,7 +73,7 @@ class UNet1(LightningModule):
         
         # Log validation loss
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        #self.log("val_loss", loss, prog_bar=True)
+        return loss
 
     def on_validation_epoch_end(self):
         # Compute R2 over all validation batches
@@ -86,14 +86,6 @@ class UNet1(LightningModule):
 
     def configure_optimizers(self):
         optimizer = Adam(self.parameters())
-        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
-        # return {
-        #     "optimizer": optimizer,
-        #     "lr_scheduler": {
-        #         "scheduler": scheduler,
-        #         "monitor": "val_loss",
-        #     },
-        # }
         return {
             "optimizer": optimizer
         }

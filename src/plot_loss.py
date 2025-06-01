@@ -25,7 +25,7 @@ def plot_loss(csv_folder="iter3_binary_csv", plot_name=""):
         val_loss = df["val_loss"].dropna().tolist()
         train_loss = df["train_loss"].dropna().tolist()
 
-        plots_dir = os.path.join(os.path.dirname(__file__), "..", "plots/results", csv_folder, newest_version)
+        plots_dir = os.path.join(os.path.dirname(__file__), "..", "plots/testing", csv_folder, newest_version)
         plots_dir = os.path.abspath(plots_dir) 
         os.makedirs(plots_dir, exist_ok=True)
 

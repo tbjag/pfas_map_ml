@@ -18,6 +18,7 @@ from pytorch_lightning.utilities.model_summary import summarize
 from models.UNets.unet1_binary import UNet1
 from models.UNets.unet2_binary import UNet2
 from models.UNets.unet3_binary import UNet3
+from models.ResNets.resnet2_binary import ResNetModel as ResNet2
 import time
 
 def get_best_classification_metrics(csv_folder):
@@ -99,7 +100,7 @@ for inputs, target in train_loader:
     print("Training Target Shape:", target.shape)
     break  # Print shape for only the first batch
 
-RUN_NAME = "iter3_all_10km_binary_2"
+RUN_NAME = "iter3_all_10km_pfas_binary_unet1"
 tensorboard_log_folder = RUN_NAME + "_tensorboard"
 csv_log_folder = RUN_NAME + "_csv"
 
@@ -114,11 +115,12 @@ checkpoint_callback = ModelCheckpoint(
 
 # Train the model
 trainer = Trainer(
+    gradient_clip_val=0.5,
     logger=[logger, csv_logger],
     callbacks=[checkpoint_callback],
-    max_epochs=70
+    max_epochs=200
 )
-model = Model2()
+model = UNet1()
 
 summary = summarize(model)
 training_start_time = time.time()
@@ -130,7 +132,7 @@ minutes = int((training_duration % 3600) // 60)
 seconds = int(training_duration % 60)
 training_time_str = f"{hours}h {minutes}m {seconds}s"
 
-loss_plot_path = plot_loss(csv_folder=csv_log_folder, plot_name="CNN2 All 10km Logistic")
+loss_plot_path = plot_loss(csv_folder=csv_log_folder, plot_name="UNet1 All 10km PFAS Binary")
 
 metrics = get_best_classification_metrics(csv_log_folder)
 

@@ -11,12 +11,11 @@ class ResNetModel(LightningModule):
         self.r2_score = R2Score()
         self.mae = MAE()
 
-        # Initial convolution block (36 -> 256 channels)
         self.conv1 = nn.Sequential(
-            nn.Conv2d(50, 256, 3, padding='same'),
+            nn.Conv2d(52, 256, 3, padding='same'),
             nn.BatchNorm2d(256),
             nn.ReLU(),
-            nn.Dropout(0.2)
+            nn.Dropout(0.15)
         )
 
         # Residual blocks with channel reduction
@@ -54,7 +53,7 @@ class ResNetModel(LightningModule):
         
         # Log validation loss
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        #self.log("val_loss", loss, prog_bar=True)
+        return loss
 
     def on_validation_epoch_end(self):
         # Compute R2 over all validation batches
@@ -66,40 +65,48 @@ class ResNetModel(LightningModule):
         self.mae.reset()
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters())
-        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
-        # return {
-        #     "optimizer": optimizer,
-        #     "lr_scheduler": {
-        #         "scheduler": scheduler,
-        #         "monitor": "val_loss",
-        #     },
-        # }
+        optimizer = Adam(self.parameters(),weight_decay=1e-5)
+
         return {
             "optimizer": optimizer
         }
 
 class ResidualBlock(nn.Module):
-    """ResNet-style residual block with channel reduction"""
-    def __init__(self, in_channels, out_channels):
+    """ResNet-style residual block with channel reduction and optimized dropout"""
+    def __init__(self, in_channels, out_channels, dropout_rate=0.2):
         super().__init__()
+        # Main path
         self.conv1 = nn.Conv2d(in_channels, out_channels, 3, padding='same')
         self.bn1 = nn.BatchNorm2d(out_channels)
+        self.relu = nn.ReLU()
+        self.dropout1 = nn.Dropout2d(p=dropout_rate)  # Spatial dropout after first activation
+        
         self.conv2 = nn.Conv2d(out_channels, out_channels, 3, padding='same')
         self.bn2 = nn.BatchNorm2d(out_channels)
-        self.relu = nn.ReLU()
-        
-        # Shortcut connection for channel mismatch
+        self.dropout2 = nn.Dropout2d(p=dropout_rate/2)  # Smaller dropout after second conv
+
+        # Shortcut connection with optional projection
         self.shortcut = nn.Sequential()
         if in_channels != out_channels:
             self.shortcut = nn.Sequential(
                 nn.Conv2d(in_channels, out_channels, 1, padding='same'),
-                nn.BatchNorm2d(out_channels)
+                nn.BatchNorm2d(out_channels),
+                nn.Dropout2d(p=dropout_rate/4)  # Small dropout in projection
             )
 
     def forward(self, x):
         residual = self.shortcut(x)
-        x = self.relu(self.bn1(self.conv1(x)))
-        x = self.bn2(self.conv2(x))
+        
+        # Main path processing
+        x = self.conv1(x)
+        x = self.bn1(x)
+        x = self.relu(x)
+        x = self.dropout1(x)
+        
+        x = self.conv2(x)
+        x = self.bn2(x)
+        x = self.dropout2(x)
+        
+        # Combine paths
         x += residual
         return self.relu(x)

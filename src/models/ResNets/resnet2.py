@@ -11,9 +11,8 @@ class ResNetModel(LightningModule):
         self.r2_score = R2Score()
         self.mae = MAE()
 
-        # Initial convolution block (36 -> 256 channels)
         self.conv1 = nn.Sequential(
-            nn.Conv2d(54, 512, 3, padding='same'),
+            nn.Conv2d(52, 512, 3, padding='same'),
             nn.BatchNorm2d(512),
             nn.ReLU(),
             nn.Dropout(0.2)
@@ -56,7 +55,7 @@ class ResNetModel(LightningModule):
         
         # Log validation loss
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
-        #self.log("val_loss", loss, prog_bar=True)
+        return loss
 
     def on_validation_epoch_end(self):
         # Compute R2 over all validation batches
@@ -68,15 +67,8 @@ class ResNetModel(LightningModule):
         self.mae.reset()
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters())
-        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
-        # return {
-        #     "optimizer": optimizer,
-        #     "lr_scheduler": {
-        #         "scheduler": scheduler,
-        #         "monitor": "val_loss",
-        #     },
-        # }
+        optimizer = Adam(self.parameters(),weight_decay=1e-5)
+
         return {
             "optimizer": optimizer
         }

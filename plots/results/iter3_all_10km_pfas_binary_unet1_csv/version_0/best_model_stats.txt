@@ -1,0 +1,9 @@
+Best Model Validation Loss: 0.05490719899535179
+Best Model Validation Accuracy: 0.98286771774292
+Best Model Validation Recall: 0.9811960458755492
+Best Model Validation Precision: 0.984534502029419
+Best Model Validation F1 Score: 0.9828624129295348
+Training Duration: 0h 39m 24s
+Total Epochs: 200
+Min Loss at Epoch: 195
+Best Model Path: logs/iter3_all_10km_pfas_binary_unet1_tensorboard/version_0/checkpoints/epoch=195-step=79380.ckpt

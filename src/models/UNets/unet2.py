@@ -4,11 +4,14 @@ import torch.nn as nn
 from models.UNets.unet_parts import *
 from pytorch_lightning import LightningModule
 from torch.optim import Adam
+from torchmetrics import R2Score
+from torchmetrics import MeanAbsoluteError as MAE
 
 class UNet2(LightningModule):
-    def __init__(self, n_channels=50, n_classes=1, dropout_rate=0.15):
+    def __init__(self, n_channels=52, n_classes=1, dropout_rate=0.3):
         super(UNet2, self).__init__()
-        self.best_model_val_loss = -1  # Initialize tracking
+        self.r2_score = R2Score()
+        self.mae = MAE()
         
         self.n_channels = n_channels
         self.n_classes = n_classes
@@ -32,15 +35,15 @@ class UNet2(LightningModule):
     def forward(self, x):
         # Forward pass with same dropout pattern as UNet3
         x1 = self.inc(x)
-        x1 = self.dropout(x1)
+        #x1 = self.dropout(x1)
         x2 = self.down1(x1)
-        x2 = self.dropout(x2)
+        #x2 = self.dropout(x2)
         x3 = self.down2(x2)
-        x3 = self.dropout(x3)
+        #x3 = self.dropout(x3)
         x4 = self.down3(x3)
-        x4 = self.dropout(x4)
+        #x4 = self.dropout(x4)
         x5 = self.down4(x4)
-        x5 = self.dropout(x5)
+        #x5 = self.dropout(x5)
         
         x = self.up1(x5, x4)
         x = self.dropout(x)
@@ -53,25 +56,38 @@ class UNet2(LightningModule):
         
         return self.outc(x)
 
-    # Matching training/validation methods from UNet3
     def training_step(self, batch, batch_idx):
         x, y = batch
         y_pred = self(x)
         loss = nn.functional.mse_loss(y_pred, y)
+        #loss = nn.MSELoss(y_pred, y)
         self.log("train_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        #self.log("train_loss", loss, prog_bar=True)
         return loss
-    
+
     def validation_step(self, batch, batch_idx):
         x, y = batch
         y_pred = self(x)
         loss = nn.functional.mse_loss(y_pred, y)
-        self.log("val_loss", loss, on_epoch=True, prog_bar=True)
+        self.r2_score.update(y_pred.flatten(1), y.flatten(1))  # Accumulate R2 across batches
+        self.mae.update(y_pred, y)
+        
+        # Log validation loss
+        self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        return loss
 
     def on_validation_epoch_end(self):
-        val_loss = self.trainer.callback_metrics["val_loss"].item()
-        if self.best_model_val_loss < 0 or val_loss < self.best_model_val_loss:
-            self.best_model_val_loss = val_loss
-        self.log("best_model_val_loss", self.best_model_val_loss, prog_bar=True)
+        # Compute R2 over all validation batches
+        val_r2 = self.r2_score.compute()
+        val_mae = self.mae.compute()
+        self.log("val_r2", val_r2, prog_bar=True)
+        self.log("val_mae", val_mae, prog_bar=True)
+        self.r2_score.reset()  # Reset for next epoch
+        self.mae.reset()
 
     def configure_optimizers(self):
-        return Adam(self.parameters(), lr=1e-3)
+        optimizer = Adam(self.parameters(),weight_decay=1e-4)#,weight_decay=1e-5
+
+        return {
+            "optimizer": optimizer
+        }

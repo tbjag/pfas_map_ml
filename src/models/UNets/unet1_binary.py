@@ -8,9 +8,10 @@ from models.UNets.unet_parts import *
 from pytorch_lightning import LightningModule
 from torch.optim import Adam
 import torchmetrics
+import torch.nn.functional as F
 
 class UNet1(LightningModule):
-    def __init__(self, n_channels=52, n_classes=1, dropout_rate=0.2):
+    def __init__(self, n_channels=52, n_classes=1, dropout_rate=0.3):
         super(UNet1, self).__init__()
         self.val_acc = torchmetrics.Accuracy(task="binary")
         self.val_prec = torchmetrics.Precision(task="binary")
@@ -41,15 +42,15 @@ class UNet1(LightningModule):
     def forward(self, x):
         # Forward pass with dropout
         x1 = self.inc(x)
-        x1 = self.dropout(x1)
+        #x1 = self.dropout(x1)
         x2 = self.down1(x1)
-        x2 = self.dropout(x2)
+        #x2 = self.dropout(x2)
         x3 = self.down2(x2)
-        x3 = self.dropout(x3)
+        #x3 = self.dropout(x3)
         x4 = self.down3(x3)
-        x4 = self.dropout(x4)
+        #x4 = self.dropout(x4)
         x5 = self.down4(x4)
-        x5 = self.dropout(x5)
+        #x5 = self.dropout(x5)
         
         x = self.up1(x5, x4)
         x = self.dropout(x)
@@ -84,6 +85,7 @@ class UNet1(LightningModule):
         self.val_f1(y_pred, y)
         
         self.log("val_loss", loss, on_step=False, on_epoch=True, prog_bar=True)
+        return loss
 
     def on_validation_epoch_end(self):
         # Log validation metrics
@@ -99,15 +101,8 @@ class UNet1(LightningModule):
         self.val_f1.reset()
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters())
-        # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
-        # return {
-        #     "optimizer": optimizer,
-        #     "lr_scheduler": {
-        #         "scheduler": scheduler,
-        #         "monitor": "val_loss",
-        #     },
-        # }
+        optimizer = Adam(self.parameters(),weight_decay=1e-5)
+
         return {
             "optimizer": optimizer
         }
